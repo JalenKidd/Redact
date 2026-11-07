@@ -13,6 +13,8 @@ try {
   const launch = () => _electron.launch({ executablePath, args: executablePath ? [] : [root], env: { ...process.env, REDACT_USER_DATA_DIR: profile } });
   application = await launch();
   let page = await application.firstWindow();
+  await page.getByRole("button", { name: "Open Redact", exact: false }).click();
+  await page.waitForFunction(() => document.getElementById("welcome-screen").hidden);
   await page.waitForSelector("#load-example");
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -20,9 +22,9 @@ try {
   assert.equal(await page.evaluate(() => typeof require), "undefined");
   await page.getByRole("button", { name: "Try a fictional example" }).click();
   await page.getByRole("button", { name: "Check my prompt" }).click();
-  assert.equal(await page.locator("#score-value").innerText(), "50");
+  await page.waitForFunction(() => document.getElementById("score-value").textContent === "50");
   await page.getByRole("button", { name: "Replace draft", exact: false }).click();
-  assert.equal(await page.locator("#score-value").innerText(), "0");
+  await page.waitForFunction(() => document.getElementById("score-value").textContent === "0");
   await page.getByRole("button", { name: "Save check", exact: true }).click();
   await page.getByRole("checkbox", { name: "Allow saving manual checks" }).check();
   await page.waitForFunction(async () => (await window.redactDesktop.getHistory()).enabled);
@@ -44,7 +46,17 @@ try {
   await page.getByRole("button", { name: "Clear desktop history", exact: true }).click();
   await page.getByRole("button", { name: "Clear history", exact: true }).click();
   await page.waitForFunction(async () => (await window.redactDesktop.getHistory()).summaries.length === 0);
-  console.log("Electron passed isolated rendering, 50 → 0 rewrite, opt-in local saving, restart persistence, and clearing.");
+  await page.getByRole("button", { name: "Replay welcome" }).click();
+  await page.getByRole("button", { name: "Take a quick tour" }).click();
+  await page.getByRole("button", { name: "Check my prompt" }).click();
+  await page.waitForFunction(() => document.getElementById("score-value").textContent === "50");
+  await page.getByRole("button", { name: "Replace draft", exact: false }).click();
+  await page.waitForFunction(() => document.getElementById("score-value").textContent === "0");
+  await page.getByRole("button", { name: "Simulate send" }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".history-score b").length === 4);
+  assert.deepEqual(await page.locator(".history-score b").allTextContents(), ["75", "50", "20", "0"]);
+  assert.equal(await page.evaluate(async () => (await window.redactDesktop.getHistory()).summaries.length), 0);
+  console.log("Electron passed welcome, rewriting, local history, restart persistence, clearing, and the guided tour.");
 } finally {
   await application?.close();
   await rm(profile, { recursive: true, force: true, maxRetries: 3 });

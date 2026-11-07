@@ -5,8 +5,9 @@ const toast = $("toast");
 const number = new Intl.NumberFormat();
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const desktop = globalThis.redactDesktop;
+const motion = RedactMotion;
 
-const routeNames = { scan: "PROMPT SCANNER", history: "EXPOSURE HISTORY", policies: "PRIVACY GUIDE" };
+const routeNames = { scan: "Prompt scanner", history: "Exposure history", policies: "Privacy guide" };
 const placeholder = {
   rating: "Ready when you are",
   description: "Check your draft to see what it could reveal.",
@@ -84,12 +85,11 @@ function emptyFinding(symbol, text) {
   return container;
 }
 
-function resetReview() {
+function resetReview({ keepScore = false } = {}) {
   lastReview = null;
   ++checkVersion;
   $("check-prompt").disabled = false;
-  $("score-value").textContent = "—";
-  $("score-ring").style.setProperty("--arc", "0%");
+  if (!keepScore) motion.resetScore();
   $("score-rating").textContent = placeholder.rating;
   $("score-rating").className = "score-badge";
   $("score-description").textContent = placeholder.description;
@@ -105,11 +105,11 @@ function updateCount() {
   $("char-count").textContent = number.format(prompt.value.length) + " / 20,000 characters";
 }
 
-function setDraft(text, label) {
+function setDraft(text, label, keepScore = false) {
   prompt.value = text;
   $("draft-label").textContent = label;
   updateCount();
-  resetReview();
+  resetReview({ keepScore });
 }
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
@@ -117,9 +117,9 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   $("save-check").hidden = !desktop || !!demo || pending;
   $("save-check").disabled = false;
   $("save-check").textContent = "Save check";
+  $("replace-draft").disabled = pending;
   const tag = tone(result.score);
-  $("score-value").textContent = result.score;
-  $("score-ring").style.setProperty("--arc", result.score + "%");
+  motion.score(result.score);
   $("score-ring").style.setProperty("--score-color", { high: "#d38c69", moderate: "#d4a96a", low: "#8ba969", clear: "#a3b884" }[tag]);
   $("score-rating").textContent = Redact.rating(result.score);
   $("score-rating").className = "score-badge " + tag;
@@ -136,8 +136,10 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
     row.append(node("span", "finding-dot"), label, node("span", "finding-points", "+" + reason.points));
     $("findings").append(row);
   }
+  motion.findings();
 
   const hasFindings = result.matches.length > 0;
+  const revealRewrite = $("rewrite-card").hidden && hasFindings;
   $("rewrite-card").hidden = !hasFindings;
   $("highlighted").replaceChildren();
   $("rewritten").textContent = hasFindings ? result.rewritten : "";
@@ -152,6 +154,7 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
     }
     $("highlighted").append(document.createTextNode(text.slice(offset)));
   }
+  if (revealRewrite) motion.reveal($("rewrite-card"));
   if (!pending) $("announcement").textContent = result.score + " out of 100. " + Redact.rating(result.score) + ".";
 }
 
@@ -164,6 +167,7 @@ async function runCheck() {
   }
 
   const version = ++checkVersion;
+  motion.scan();
   const rules = Redact.scan(text);
   showResult(text, rules);
   if (demo) {
@@ -184,19 +188,25 @@ async function runCheck() {
   }
 }
 
-function replaceDraft() {
+async function replaceDraft() {
   if (!lastReview || lastReview.text !== prompt.value) return;
+  const review = lastReview;
+  $("replace-draft").disabled = true;
+  await motion.redact($("highlighted"));
+  $("replace-draft").disabled = false;
+  if (review !== lastReview || review.text !== prompt.value) return;
   const before = lastReview.result.score;
   const text = lastReview.result.rewritten;
   const result = Redact.scan(text);
-  setDraft(text, demo ? "FICTIONAL REWRITE" : "REVISED DRAFT");
+  setDraft(text, demo ? "FICTIONAL REWRITE" : "REVISED DRAFT", true);
   showResult(text, result, { replaced: true });
   if (demo) {
     updateDemo("03 / Exposure dropped from " + before + " to " + result.score + ". Simulate a send to see the summary.");
     $("demo-send").hidden = false;
+    motion.reveal($("demo-send"));
     $("simulate-send").focus({ preventScroll: true });
     $("demo-send").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  } else {
+  } else if (activeRoute === "scan") {
     prompt.focus({ preventScroll: true });
     $("draft-heading").scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -234,7 +244,7 @@ function endDemo() {
   $("demo-banner").hidden = true;
   $("demo-send").hidden = true;
   $("start-demo").firstChild.textContent = "Run the demo ";
-  setDraft(draftBeforeDemo, "PASTE. CHECK. CHOOSE.");
+  setDraft(draftBeforeDemo, "READY TO CHECK");
   draftBeforeDemo = "";
   if (activeRoute === "history") void refreshHistory();
   notify("Demo ended. Your private workspace is ready.");
@@ -579,12 +589,42 @@ async function showAi() {
   actions.append(enable);
 }
 
+let welcomeLeaving = false;
+
+function showWelcome() {
+  $("welcome-screen").hidden = false;
+  $("workspace").inert = true;
+  document.body.classList.add("welcome-open");
+  $("enter-workspace").focus({ preventScroll: true });
+}
+
+async function enterWorkspace(tour = false) {
+  if (welcomeLeaving) return;
+  welcomeLeaving = true;
+  try { localStorage.setItem("redact.welcomeSeen.v1", "true"); } catch {}
+  const welcome = $("welcome-screen");
+  const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 380;
+  await welcome.animate([
+    { opacity: 1, transform: "scale(1)", filter: "blur(0)" },
+    { opacity: 0, transform: "scale(1.025)", filter: "blur(3px)" },
+  ], { duration, easing: "cubic-bezier(.22, 1, .36, 1)" }).finished.catch(() => {});
+  welcome.hidden = true;
+  $("workspace").inert = false;
+  document.body.classList.remove("welcome-open");
+  welcomeLeaving = false;
+  if (tour) startDemo();
+  else motion.page($(activeRoute + "-page"));
+  if (tour) $("check-prompt").focus({ preventScroll: true });
+  else prompt.focus({ preventScroll: true });
+}
+
 function routeFromHash() {
   const hash = location.hash.slice(1);
   return Object.hasOwn(routeNames, hash) ? hash : "scan";
 }
 
 function renderRoute(route) {
+  const previous = activeRoute;
   activeRoute = route;
   for (const key of Object.keys(routeNames)) {
     $(key + "-page").hidden = key !== route;
@@ -594,6 +634,10 @@ function renderRoute(route) {
     else tab.removeAttribute("aria-current");
   }
   $("breadcrumb").textContent = routeNames[route];
+  if (previous !== route) {
+    const order = Object.keys(routeNames);
+    motion.page($(route + "-page"), order.indexOf(route) > order.indexOf(previous) ? 1 : -1);
+  }
   if (demo) $("demo-instruction").textContent = demo.instructions[route];
   if (route === "history") {
     renderHistory();
@@ -607,6 +651,25 @@ function navigate(route) {
   window.scrollTo(0, 0);
 }
 
+$("enter-workspace").addEventListener("click", () => void enterWorkspace());
+$("welcome-demo").addEventListener("click", () => void enterWorkspace(true));
+$("replay-welcome").addEventListener("click", showWelcome);
+$("welcome-screen").addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    void enterWorkspace();
+  }
+  if (event.key !== "Tab") return;
+  const first = $("enter-workspace");
+  const last = $("welcome-demo");
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 $("start-demo").addEventListener("click", startDemo);
 $("end-demo").addEventListener("click", endDemo);
 $("simulate-send").addEventListener("click", simulateSend);
@@ -617,14 +680,14 @@ $("load-example").addEventListener("click", () => {
   prompt.focus();
 });
 $("clear-draft").addEventListener("click", () => {
-  setDraft("", "PASTE. CHECK. CHOOSE.");
+  setDraft("", "READY TO CHECK");
   $("demo-send").hidden = true;
   prompt.focus();
 });
 prompt.addEventListener("input", () => {
   updateCount();
   resetReview();
-  $("draft-label").textContent = demo ? "REHEARSAL DRAFT" : "PASTE. CHECK. CHOOSE.";
+  $("draft-label").textContent = demo ? "REHEARSAL DRAFT" : "READY TO CHECK";
   $("demo-send").hidden = true;
 });
 $("check-prompt").addEventListener("click", () => void runCheck());
@@ -657,13 +720,20 @@ window.addEventListener("focus", () => {
 renderPolicies();
 if (desktop) {
   document.body.classList.add("desktop-app");
+  if (desktop.platform === "darwin") document.body.classList.add("desktop-mac");
   document.querySelector(".local-note").lastChild.textContent = " This check runs on your device. Your draft stays in this window.";
   $("history-description").textContent = "Manual check summaries are stored on this device. Choose what to save after each check.";
   $("desktop-history-settings").hidden = false;
   $("history-page").querySelector(".page-heading p").textContent = "Review the drafts you chose to check. Start with the highest exposure.";
 }
+$("workspace").hidden = false;
 if (location.hash === "#demo") startDemo();
-else renderRoute(routeFromHash());
+else {
+  renderRoute(routeFromHash());
+  let seenWelcome = false;
+  try { seenWelcome = localStorage.getItem("redact.welcomeSeen.v1") === "true"; } catch {}
+  if (!seenWelcome && ["", "#scan"].includes(location.hash)) showWelcome();
+}
 void RedactModel.availability().then(status => {
   if (status === "available") $("engine-status").lastChild.textContent = " Rules + contextual AI ready";
 });
