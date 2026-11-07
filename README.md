@@ -57,6 +57,40 @@ Outputs go in `release/`. Build each distribution on its target OS. Mac builds a
 
 The expanded tests cover missed disclosures, benign topics, Unicode names, credential formats, placeholder collisions, retained-context scoring, output validation, local-only checks, cancellation, and transport limits. For restricted Linux CI, `REDACT_HEADLESS=1 npm run test:desktop` uses headless Chromium and a test-only shim for the Unix-socket singleton lock. The normal desktop launch and normal smoke test do not load that shim. Platform installer signing and live model quality require separate target-machine checks.
 
+## Import and analyze past ChatGPT conversations
+
+Open **Exposure history → Import past conversations** in the Electron app or local browser dashboard. This feature is separate from saved desktop checks and Chrome submission summaries.
+
+1. Get a ChatGPT export through **Settings → Data controls → Export data**. Follow the [official export instructions](https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data). Download and extract the ZIP, then find `conversations.json` or the numbered conversation JSON files described in [OpenAI's transfer guide](https://help.openai.com/en/articles/9106926-transfer-exported-conversations-between-chatgpt-accounts).
+2. Choose one or more of those JSON files in Redact. ZIP and HTML imports are not supported. For a fictional trial, select `examples/chatgpt-synthetic.json` from this source repository.
+3. Review the preview: conversation titles, user-prompt counts, attachments, malformed records, duplicate copies, and conflicts. Select the conversations you want to analyze.
+4. Choose **Analyze selected conversations**. A dedicated local worker performs the rules scan and reports progress. You can cancel without replacing previously completed results.
+5. Explore prompts ranked by detected score, filter by category or scan coverage, and open **Monthly exposure trends**. **Inspect prompt** shows the original exported user text, highlighted findings, scoring reasons, timestamps and branch labels. **Open in prompt scanner** copies the selected text into a draft for review; it does not automatically analyze, send, or save it.
+6. Choose **Clear imported history** to clear the in-memory import and results. Closing or reloading the window also clears them. If you copied a prompt into the scanner, clear that separate draft there as needed.
+
+### Supported format and coverage
+
+The adapter supports ChatGPT-style conversation objects with `id`/`conversation_id`, a `mapping` keyed by node ID, and `message.author.role` / `message.content.parts`. Root arrays, a single conversation, and a `conversations` wrapper are accepted. This is a bounded adapter for that format, not a claim to support every current or future export variant. Initial validation uses synthetic fixtures, real Electron file inputs, and an isolated HTTP renderer; a representative sanitized real account export still needs acceptance testing.
+
+Only user-authored prompts are scored. Assistant, system and tool message contents are not retained in the normalized dataset or counted as the user's disclosures. Current and alternate exported branches stay distinct using their node identities. Identical text in separate branches or conversations is not deduplicated. Missing/cyclic branch paths receive unknown labels. Duplicate node copies across numbered files are excluded; changed copies with the same identity keep the first version and produce a visible conflict count. Titles and text are rendered as inert text, never imported markup.
+
+Bulk analysis uses **local rules only**, even if contextual AI is enabled for the draft scanner. It makes no model calls, provider requests, or attachment fetches. Names, medical context, languages and unusual identifier formats still have detection gaps. No cumulative conversation-level identity/linkability analysis is performed.
+
+- **Full exported text:** a rules score is assigned to the supported text.
+- **Partial:** attachments or other unsupported parts were excluded. The score is labeled `≥` as a lower bound on detected exposure; partial records are excluded from mean scores.
+- **Unscanned:** no supported text, or a prompt longer than 20,000 characters. No score is assigned. Oversized prompt inspection displays only the first 20,000 characters with an explicit warning.
+- **Mean and trends:** calculated only from fully scanned text prompts. Missing dates remain unknown; monthly buckets use UTC. Zero means no detected signals, not safety.
+
+Limits apply to the whole import before selection: 20 JSON files / 16 MiB combined, 1,000 conversation records, 25,000 message nodes, 10,000 user prompt records and 4 million extracted text characters. Oversized jobs fail with an explanation; they are not silently truncated into a complete-looking result. Large exports may need smaller numbered files. Rendering uses 25 prompts per page.
+
+### Data lifetime and sync boundary
+
+Raw imports, previews and detailed results stay in the worker/window memory. They are not written into `exposure-history.json`, Chrome storage, localStorage or sessionStorage, and are not added to device sync. The existing saved summary format and consent controls are unchanged. This is application-level memory-only handling, not guaranteed physical memory erasure or control over operating-system swap/crash capture. The original export files remain where the user saved them.
+
+Persistent imported history is deferred until an encrypted vault and deletion/sync contracts are implemented. Keep raw conversations out of summary synchronization. A new successful analysis replaces the imported view; a failed or cancelled replacement keeps the prior completed view.
+
+Run `npm test` for parser/scoring/coverage/resource tests and `npm run test:import` for the real Electron import journey. On restricted Linux CI use `REDACT_HEADLESS=1 npm run test:import`. The smoke test uses synthetic in-memory files, verifies isolation from saved summaries and model calls, handles malformed replacements and inert markup, and checks clearing/reload behavior.
+
 ## Website and Chrome extension
 
 1. Run `npm run dev` and open [the local dashboard](http://127.0.0.1:4173/).
@@ -92,7 +126,7 @@ The expanded tests cover missed disclosures, benign topics, Unicode names, crede
 - **History.** The extension keeps up to 200 summaries in local Chrome storage. The allowlisted dashboard can only read those summaries. The popup owns consent and clearing history. Unchecked submissions use rules for a quick score, while an unchanged checked draft can also carry the contextual categories that were found.
 - **Guide.** Source-linked cards cover ChatGPT and DeepSeek consumer services. Actions open provider settings or a privacy portal and offer reviewable deletion request text. Users submit any request themselves.
 - **Desktop app.** Electron bundles the UI in an isolated renderer with a narrow preload bridge. Manual-check history is opt-in and stored atomically in the app’s local data folder. Provider links open in the system browser.
-- **Scope.** The desktop app and responsive website support manual checking. Inline checking and observed-submission history target desktop Chrome and the ChatGPT web composer. The desktop app uses rules by default with an optional local Ollama connection. Official chat export import is future work.
+- **Scope.** The desktop app and responsive website support manual checking and memory-only analysis of supported ChatGPT JSON exports. Inline checking and observed-submission history target desktop Chrome and the ChatGPT web composer. The desktop app uses rules by default with an optional local Ollama connection for individual drafts. Other provider importers, attachment analysis, encrypted persistent imported history, and cumulative conversation-level risk remain future work.
 
 ### Integration with device synchronization
 

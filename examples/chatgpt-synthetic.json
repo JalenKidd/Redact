@@ -1,0 +1,70 @@
+[
+  {
+    "id": "fictional-credentials",
+    "title": "Fictional support request",
+    "create_time": 1793923200,
+    "current_node": "credentials-reply",
+    "mapping": {
+      "credentials-root": { "id": "credentials-root", "parent": null, "message": null },
+      "credentials-user": {
+        "id": "credentials-user", "parent": "credentials-root",
+        "message": {
+          "id": "credentials-user", "author": { "role": "user" }, "create_time": 1793923200,
+          "content": { "content_type": "text", "parts": ["Draft a support email. My password is Fictional-Demo-Only-123 and my email is avery@example.com."] }
+        }
+      },
+      "credentials-reply": {
+        "id": "credentials-reply", "parent": "credentials-user",
+        "message": {
+          "id": "credentials-reply", "author": { "role": "assistant" }, "create_time": 1793923210,
+          "content": { "content_type": "text", "parts": ["Here is a draft. This assistant response is not scored as a user disclosure."] }
+        }
+      }
+    }
+  },
+  {
+    "id": "fictional-health",
+    "title": "Fictional appointment questions",
+    "create_time": 1791244800,
+    "current_node": "health-main",
+    "mapping": {
+      "health-root": { "id": "health-root", "parent": null, "message": null },
+      "health-main": {
+        "id": "health-main", "parent": "health-root",
+        "message": {
+          "id": "health-main", "author": { "role": "user" }, "create_time": 1791244800,
+          "content": { "content_type": "text", "parts": ["My name is Avery Example. I have type 1 diabetes. Help me prepare three questions for my doctor."] }
+        }
+      },
+      "health-alternate": {
+        "id": "health-alternate", "parent": "health-root",
+        "message": {
+          "id": "health-alternate", "author": { "role": "user" }, "create_time": 1791244790,
+          "content": { "content_type": "text", "parts": ["Help me prepare three general questions for a doctor's appointment."] }
+        }
+      }
+    }
+  },
+  {
+    "id": "fictional-attachment",
+    "title": "Fictional upload with a coverage gap",
+    "create_time": 1794009600,
+    "current_node": "attachment-only",
+    "mapping": {
+      "attachment-text": {
+        "id": "attachment-text", "parent": null,
+        "message": {
+          "id": "attachment-text", "author": { "role": "user" }, "create_time": 1794009600,
+          "content": { "content_type": "multimodal_text", "parts": ["My phone number is (202) 555-0147. Summarize this fictional image.", { "content_type": "image_asset_pointer", "asset_pointer": "fictional-image-never-loaded" }] }
+        }
+      },
+      "attachment-only": {
+        "id": "attachment-only", "parent": "attachment-text",
+        "message": {
+          "id": "attachment-only", "author": { "role": "user" }, "create_time": 1794009610,
+          "content": { "content_type": "audio", "parts": [{ "audio": "fictional-audio-never-loaded" }] }
+        }
+      }
+    }
+  }
+]
