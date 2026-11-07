@@ -62,7 +62,6 @@
   let historyEnabled = false;
   let staged = null;
   let expiry;
-  let frameScheduled = false;
 
   function read(element) {
     return element instanceof HTMLTextAreaElement ? element.value : element?.innerText || "";
@@ -228,7 +227,6 @@
   }, true);
 
   function sync() {
-    frameScheduled = false;
     const current = draftComposer();
     if (current !== composer) {
       composer = current;
@@ -262,11 +260,7 @@
   }
 
   sync();
-  new MutationObserver(() => {
-    if (frameScheduled) return;
-    frameScheduled = true;
-    requestAnimationFrame(sync);
-  }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  new MutationObserver(sync).observe(document.body, { subtree: true, childList: true, characterData: true });
 
   let settingsChanged = false;
   chrome.storage.onChanged.addListener((changes, area) => {
