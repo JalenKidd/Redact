@@ -12,7 +12,8 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
-    "test:desktop": "npm run build && node scripts/desktop-smoke.mjs"
+    "test:desktop": "npm run build && node scripts/desktop-smoke.mjs",
+    "db:generate": "drizzle-kit generate"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -36,7 +37,9 @@
       "dist/**",
       "shared/scanner.js",
       "extension/icons/128.png",
-      "package.json"
+      "package.json",
+      "!dist/server/**",
+      "!dist/.openai/**"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -62,10 +65,14 @@
     }
   },
   "devDependencies": {
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.4",
     "electron": "^45.2.3",
     "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
     "fflate": "^0.8.3",
-    "playwright": "^1.65.0"
+    "playwright": "^1.65.0",
+    "qrcode": "^1.5.4"
   },
   "overrides": {
     "minimatch@^9.0.3": "^11.0.5",

@@ -6,11 +6,13 @@ import { createHistoryStore } from "./history-store.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const renderer = join(root, "dist");
 const home = "redact://app/index.html";
+const hosted = "https://redact-pluto-hacks.electbush1.chatgpt.site";
 const externalHosts = new Set([
   "chatgpt.com", "privacy.openai.com", "openai.com", "help.openai.com",
-  "chat.deepseek.com", "cdn.deepseek.com", "developer.chrome.com",
+  "chat.deepseek.com", "cdn.deepseek.com", "developer.chrome.com", new URL(hosted).hostname,
 ]);
-const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+const syncSources = hosted + (app.isPackaged ? "" : " http://127.0.0.1:4173");
+const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src " + syncSources + "; object-src 'none'; base-uri 'none'; form-action 'none'";
 let window;
 
 app.setName("Redact");

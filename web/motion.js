@@ -3,6 +3,44 @@
   const reduced = () => preference.matches;
   const spring = "cubic-bezier(.22, 1, .36, 1)";
   let scoreFrame;
+  let tabAnimation;
+  let pageTransition;
+  let routeVersion = 0;
+
+  function navigation(tab, animate = true) {
+    if (!tab) return;
+    const indicator = tab.parentElement.querySelector(".nav-indicator");
+    const parent = tab.parentElement.getBoundingClientRect();
+    const old = indicator.getBoundingClientRect();
+    const next = tab.getBoundingClientRect();
+    const position = rect => "translate(" + (rect.left - parent.left) + "px," + (rect.top - parent.top) + "px)";
+    tabAnimation?.cancel();
+    Object.assign(indicator.style, { transform: position(next), width: next.width + "px", height: next.height + "px" });
+    if (!reduced() && animate && old.width) {
+      tabAnimation = indicator.animate([
+        { transform: position(old), width: old.width + "px", height: old.height + "px" },
+        { transform: position(next), width: next.width + "px", height: next.height + "px" },
+      ], { duration: 420, easing: "cubic-bezier(.25,1.25,.4,1)" });
+    }
+  }
+
+  function switchPage(from, to, routes, render) {
+    const version = ++routeVersion;
+    pageTransition?.skipTransition();
+    const show = animate => {
+      if (version !== routeVersion) return;
+      render(to, animate);
+      window.scrollTo(0, 0);
+    };
+    if (from === to || reduced() || !document.startViewTransition) return show(true);
+    const order = Object.keys(routes);
+    const root = document.documentElement;
+    root.dataset.slide = order.indexOf(to) > order.indexOf(from) ? "next" : "previous";
+    pageTransition = document.startViewTransition(() => show(false));
+    void pageTransition.finished.catch(() => {}).finally(() => {
+      if (version === routeVersion) delete root.dataset.slide;
+    });
+  }
 
   function reveal(element) {
     if (reduced() || element.hidden) return;
@@ -77,5 +115,5 @@
     });
   }
 
-  globalThis.RedactMotion = Object.freeze({ reveal, page, score, resetScore, scan, redact, findings });
+  globalThis.RedactMotion = Object.freeze({ reveal, page, navigation, switchPage, score, resetScore, scan, redact, findings });
 })();

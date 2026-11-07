@@ -14,6 +14,14 @@ The welcome screen uses a two-beat logo and wordmark animation inspired by Pulse
 
 The app bundles its own UI and runs the prompt scanner locally. Check a draft, review the rewrite, and copy it into your AI provider. To keep a manual-check summary, open **Exposure history → History settings**, enable saving, and choose **Save check** after checking a draft. Desktop history persists on this device and labels these records **Manual check**.
 
+## Sync your devices
+
+Open **Devices → Enable device sync** on your first device. Select **Add a device** to generate a one-time QR code or pairing link. Scan it with your phone, or paste the code under **Devices → Enter pairing code** on another device. The [web app](https://redact-pluto-hacks.electbush1.chatgpt.site) supports phone browsers and pairs with Electron.
+
+Redact encrypts saved check summaries and appearance preferences on the device before uploading them. Pairing links carry the encryption key in the URL fragment. The service stores encrypted summaries alongside the device names and connection times needed to manage the workspace. Prompt checks run locally. Removing a device blocks its future sync requests. You can clear the shared history in Devices.
+
+Linked devices sync while Redact is open. **Sync now** refreshes immediately. Chrome extension summaries join the shared history when its connected dashboard is open. The **Overview** tab charts the saved summaries available to that workspace.
+
 ### Package the desktop app
 
 - `npm run package:desktop` creates a runnable application folder for the current OS.
@@ -32,6 +40,8 @@ Outputs go in `release/`. Build each distribution on its target OS. Mac builds a
 3. Pin Redact. In the popup, turn on **Keep exposure history** to record summaries of observed ChatGPT submissions. **Open local dashboard** opens that browser history view.
 
 `npm run build` creates the shared web UI in `dist/`, the extension in `build/extension/`, and `dist/redact-extension.zip`. Set `REDACT_SITE_URL` before building to allow a different HTTPS dashboard origin, then reload the unpacked extension.
+
+The local web server also runs the pairing API with SQLite. Use `REDACT_SYNC_URL=http://127.0.0.1:4173 npm start` to connect the development Electron app to that local service. Hosted builds package the same API as a Worker with a D1 database. Database schema changes are generated with `npm run db:generate`.
 
 ## 90-second judging walkthrough
 

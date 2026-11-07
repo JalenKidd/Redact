@@ -6,8 +6,12 @@ const number = new Intl.NumberFormat();
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const desktop = globalThis.redactDesktop;
 const motion = RedactMotion;
+const historyStore = desktop || RedactHistory;
+const syncClient = RedactSync.createSyncClient({
+  baseURL: location.hostname === "127.0.0.1" ? location.origin : RedactConfig.syncUrl || RedactConfig.hostedUrl,
+});
 
-const routeNames = { scan: "Prompt scanner", history: "Exposure history", policies: "Privacy guide" };
+const routeNames = { overview: "Overview", scan: "Prompt scanner", history: "Exposure history", policies: "Privacy guide", devices: "Devices" };
 const placeholder = {
   rating: "Ready when you are",
   description: "Check your draft to see what it could reveal.",
@@ -20,7 +24,7 @@ let draftBeforeDemo = "";
 let checkVersion = 0;
 let historyVersion = 0;
 let lastReview = null;
-let liveHistory = { state: "idle", enabled: false, summaries: [] };
+let liveHistory = { state: "idle", enabled: false, summaries: [], extensionConnected: false };
 let toastTimer;
 
 function node(tag, className, value) {
@@ -99,6 +103,7 @@ function resetReview({ keepScore = false } = {}) {
   $("highlighted").replaceChildren();
   $("rewritten").textContent = "";
   $("save-check").hidden = true;
+  document.dispatchEvent(new Event("redact:review"));
 }
 
 function updateCount() {
@@ -114,7 +119,7 @@ function setDraft(text, label, keepScore = false) {
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
   lastReview = { text, result };
-  $("save-check").hidden = !desktop || !!demo || pending;
+  $("save-check").hidden = !!demo || pending;
   $("save-check").disabled = false;
   $("save-check").textContent = "Save check";
   $("replace-draft").disabled = pending;
@@ -155,6 +160,7 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
     $("highlighted").append(document.createTextNode(text.slice(offset)));
   }
   if (revealRewrite) motion.reveal($("rewrite-card"));
+  document.dispatchEvent(new Event("redact:review"));
   if (!pending) $("announcement").textContent = result.score + " out of 100. " + Redact.rating(result.score) + ".";
 }
 
@@ -226,9 +232,11 @@ function seedHistory() {
 function startDemo() {
   if (!demo) draftBeforeDemo = prompt.value;
   demo = { summaries: seedHistory(), instructions: {
+    overview: "Explore the activity and exposure categories from the fictional checks.",
     scan: "01 / Check this fictional draft before sharing it with AI.",
     history: "See how fictional prompts rank by exposure score.",
     policies: "05 / Show how training and deletion are handled separately.",
+    devices: "Leave rehearsal mode to connect a real device.",
   } };
   document.body.classList.add("rehearsing");
   $("demo-banner").hidden = false;
@@ -247,6 +255,7 @@ function endDemo() {
   setDraft(draftBeforeDemo, "READY TO CHECK");
   draftBeforeDemo = "";
   if (activeRoute === "history") void refreshHistory();
+  document.dispatchEvent(new Event("redact:history"));
   notify("Demo ended. Your private workspace is ready.");
 }
 
@@ -269,13 +278,21 @@ function simulateSend() {
 
 function parseSummaries(value) {
   if (!Array.isArray(value)) return [];
-  return value.filter(entry => entry && ["ChatGPT", "Manual check"].includes(entry.provider) &&
-    Number.isFinite(entry.timestamp) && Number.isFinite(entry.score) &&
-    Math.abs(entry.timestamp) <= 8.64e15 && entry.score >= 0 && entry.score <= 100 && Array.isArray(entry.kinds)).slice(0, 200);
+  const unique = new Map();
+  for (const item of value) {
+    const summary = RedactSync.cleanSummary(item);
+    if (summary) unique.set(JSON.stringify(summary), summary);
+  }
+  return [...unique.values()].sort((a, b) => b.timestamp - a.timestamp).slice(0, 500);
+}
+
+function visibleSummaries() {
+  if (demo) return demo.summaries;
+  const synced = syncClient.status();
+  return synced.connected ? synced.summaries : liveHistory.summaries;
 }
 
 function readExtensionHistory() {
-  if (desktop) return desktop.getHistory().catch(() => null);
   return new Promise(resolve => {
     const runtime = globalThis.chrome?.runtime;
     if (!runtime?.sendMessage) {
@@ -305,11 +322,21 @@ async function refreshHistory() {
     liveHistory.state = "loading";
     renderHistory();
   }
-  const response = await readExtensionHistory();
+  const [local, extension] = await Promise.all([
+    historyStore.getHistory().catch(() => null), desktop ? null : readExtensionHistory(),
+  ]);
   if (version !== historyVersion || demo) return;
-  liveHistory = response ? { state: "connected", enabled: response.enabled === true, summaries: parseSummaries(response.summaries) } :
-    { state: "disconnected", enabled: false, summaries: [] };
+  const summaries = parseSummaries([...(local?.summaries || []), ...(extension?.summaries || [])]);
+  liveHistory = {
+    state: local || extension ? "connected" : "disconnected",
+    enabled: local?.enabled === true, summaries, extensionConnected: !!extension,
+  };
+  if (syncClient.status().connected) {
+    try { await syncClient.ingest(summaries); } catch {}
+    void syncClient.sync().catch(() => {});
+  }
   if (activeRoute === "history") renderHistory();
+  document.dispatchEvent(new Event("redact:history"));
 }
 
 function stat(label, value, description) {
@@ -319,7 +346,7 @@ function stat(label, value, description) {
 }
 
 function renderHistory() {
-  const summaries = demo ? demo.summaries : liveHistory.summaries;
+  const summaries = visibleSummaries();
   const source = $("history-source");
   const content = $("history-content");
   source.replaceChildren();
@@ -327,12 +354,15 @@ function renderHistory() {
 
   if (demo) {
     source.append(node("strong", null, "Rehearsal history"), node("span", null, "Fictional summaries · kept separate from your browser history"));
+  } else if (syncClient.status().connected) {
+    const state = syncClient.status();
+    source.append(node("strong", null, "Synced history"), node("span", null, state.phase === "offline" ? "Offline · showing saved summaries" : "Encrypted summaries from your linked devices"));
   } else if (desktop && liveHistory.state === "connected") {
     source.append(node("strong", null, "Desktop history"), node("span", null, "Manual checks on this device · saving " + (liveHistory.enabled ? "enabled" : "off")));
   } else if (desktop) {
     source.append(node("strong", null, liveHistory.state === "loading" ? "Loading desktop history…" : "Desktop history is unavailable. Try refreshing."));
   } else if (liveHistory.state === "connected") {
-    source.append(node("strong", null, "Chrome extension connected"), node("span", null, "Local browser history · recording " + (liveHistory.enabled ? "on" : "off")));
+    source.append(node("strong", null, liveHistory.extensionConnected ? "Browser and Chrome extension" : "Browser history"), node("span", null, "Manual check saving " + (liveHistory.enabled ? "enabled" : "off")));
   } else if (liveHistory.state === "loading") {
     source.append(node("strong", null, "Looking for the Redact extension…"));
   } else {
@@ -354,11 +384,9 @@ function renderHistory() {
     const filtered = summaries.length > 0;
     empty.append(node("span", "empty-symbol", "◷"), node("h3", null, filtered ? "No matching summaries" : "Your history is empty."));
     const text = filtered ? "Choose a different exposure filter to see more summaries." :
-      desktop ? "Enable desktop history, check a draft, then choose Save check. Each entry is a manual check summary." :
-      liveHistory.state === "connected" ? "Enable history in the extension, then send a prompt in ChatGPT to see its exposure summary here." :
-        "Install Redact and opt into history, or run the guided demo to see how it looks.";
+      "Enable saving, check a draft, then choose Save check to build your history.";
     empty.append(node("p", null, text));
-    if (!filtered && desktop && !demo) {
+    if (!filtered && !demo && liveHistory.state === "connected") {
       empty.append(button("History settings", "secondary-button", () => void showDesktopSettings()));
     } else if (!filtered && liveHistory.state !== "connected" && liveHistory.state !== "loading") {
       empty.append(button("Run the demo ↗", "secondary-button", startDemo));
@@ -420,12 +448,11 @@ function showInstall() {
 }
 
 async function showDesktopSettings() {
-  if (!desktop) return;
   const loading = node("p", null, "Loading your local preferences…");
   openDialog("REDACT / DESKTOP", "Your history, on this device.", loading);
   let state;
   try {
-    state = await desktop.getHistory();
+    state = await historyStore.getHistory();
   } catch {
     loading.textContent = "Could not load desktop history. Try again.";
     return;
@@ -438,7 +465,7 @@ async function showDesktopSettings() {
   toggle.addEventListener("change", async () => {
     toggle.disabled = true;
     try {
-      await desktop.setHistoryEnabled(toggle.checked);
+      await historyStore.setHistoryEnabled(toggle.checked);
       await refreshHistory();
       notify(toggle.checked ? "You can now save manual check summaries." : "Saving is off. Existing summaries are still available.");
     } catch {
@@ -448,19 +475,19 @@ async function showDesktopSettings() {
       toggle.disabled = false;
     }
   });
-  const clear = button("Clear desktop history", "secondary-button", () => {
+  const clear = button(desktop ? "Clear desktop history" : "Clear browser history", "secondary-button", () => {
     const actions = node("div", "dialog-actions");
     actions.append(button("Cancel", "secondary-button", () => void showDesktopSettings()), button("Clear history", "primary-button", async () => {
       try {
-        await desktop.clearHistory();
+        await historyStore.clearHistory();
         await refreshHistory();
         modal.close();
-        notify("Desktop history cleared.");
+        notify("Local history cleared.");
       } catch {
         notify("Could not clear desktop history.");
       }
     }));
-    openDialog("REDACT / DESKTOP", "Clear desktop history?", node("p", null, "This removes the saved check summaries on this device."), actions);
+    openDialog("REDACT / HISTORY", "Clear local history?", node("p", null, "This removes the saved check summaries on this device. Manage synced history under Devices."), actions);
   });
   clear.disabled = !state.summaries.length;
   const actions = node("div", "dialog-actions");
@@ -470,17 +497,18 @@ async function showDesktopSettings() {
 }
 
 async function saveDesktopCheck() {
-  if (!desktop || demo || !lastReview || lastReview.text !== prompt.value) return;
+  if (demo || !lastReview || lastReview.text !== prompt.value) return;
   const review = lastReview;
   const save = $("save-check");
   save.disabled = true;
   try {
-    const state = await desktop.getHistory();
+    const state = await historyStore.getHistory();
     if (!state.enabled) {
       await showDesktopSettings();
       return;
     }
-    await desktop.saveSummary(review.result.reasons.map(reason => reason.kind));
+    await historyStore.saveSummary(review.result.reasons.map(reason => reason.kind));
+    await refreshHistory();
     if (review === lastReview) {
       save.textContent = "Saved ✓";
       save.disabled = true;
@@ -623,7 +651,7 @@ function routeFromHash() {
   return Object.hasOwn(routeNames, hash) ? hash : "scan";
 }
 
-function renderRoute(route) {
+function renderRoute(route, animate = true) {
   const previous = activeRoute;
   activeRoute = route;
   for (const key of Object.keys(routeNames)) {
@@ -634,15 +662,15 @@ function renderRoute(route) {
     else tab.removeAttribute("aria-current");
   }
   $("breadcrumb").textContent = routeNames[route];
-  if (previous !== route) {
+  motion.navigation(document.querySelector('[data-route="' + route + '"]'), previous !== route);
+  if (animate && previous !== route) {
     const order = Object.keys(routeNames);
     motion.page($(route + "-page"), order.indexOf(route) > order.indexOf(previous) ? 1 : -1);
   }
   if (demo) $("demo-instruction").textContent = demo.instructions[route];
-  if (route === "history") {
-    renderHistory();
-    void refreshHistory();
-  }
+  if (route === "history") renderHistory();
+  if (["history", "overview", "devices"].includes(route)) void refreshHistory();
+  document.dispatchEvent(new CustomEvent("redact:route", { detail: route }));
 }
 
 function navigate(route) {
@@ -710,11 +738,10 @@ $("history-sort").addEventListener("change", renderHistory);
 $("history-filter").addEventListener("change", renderHistory);
 window.addEventListener("hashchange", () => {
   if (location.hash === "#main") return;
-  renderRoute(routeFromHash());
-  window.scrollTo(0, 0);
+  motion.switchPage(activeRoute, routeFromHash(), routeNames, renderRoute);
 });
 window.addEventListener("focus", () => {
-  if (activeRoute === "history" && !demo) void refreshHistory();
+  if (!demo) void refreshHistory();
 });
 
 renderPolicies();
@@ -723,9 +750,9 @@ if (desktop) {
   if (desktop.platform === "darwin") document.body.classList.add("desktop-mac");
   document.querySelector(".local-note").lastChild.textContent = " This check runs on your device. Your draft stays in this window.";
   $("history-description").textContent = "Manual check summaries are stored on this device. Choose what to save after each check.";
-  $("desktop-history-settings").hidden = false;
   $("history-page").querySelector(".page-heading p").textContent = "Review the drafts you chose to check. Start with the highest exposure.";
 }
+$("desktop-history-settings").hidden = false;
 $("workspace").hidden = false;
 if (location.hash === "#demo") startDemo();
 else {
@@ -734,6 +761,7 @@ else {
   try { seenWelcome = localStorage.getItem("redact.welcomeSeen.v1") === "true"; } catch {}
   if (!seenWelcome && ["", "#scan"].includes(location.hash)) showWelcome();
 }
+void refreshHistory();
 void RedactModel.availability().then(status => {
   if (status === "available") $("engine-status").lastChild.textContent = " Rules + contextual AI ready";
 });
