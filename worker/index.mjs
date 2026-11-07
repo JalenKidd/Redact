@@ -1,6 +1,7 @@
 const MAX_BODY = 750_000;
 const encoder = new TextEncoder();
 const appOrigin = typeof __REDACT_ORIGIN__ === "undefined" ? null : __REDACT_ORIGIN__;
+const pagesOrigin = typeof __REDACT_PAGES_ORIGIN__ === "undefined" ? null : __REDACT_PAGES_ORIGIN__;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -183,7 +184,7 @@ export function createWorker(assets = {}) {
         } });
       }
       const origin = request.headers.get("origin");
-      const permitted = !origin || origin === url.origin || origin === appOrigin || origin === "redact://app" || origin === "http://127.0.0.1:4173";
+      const permitted = !origin || [url.origin, appOrigin, pagesOrigin, "redact://app", "http://127.0.0.1:4173"].includes(origin);
       const headers = {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",

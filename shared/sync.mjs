@@ -86,8 +86,9 @@ export async function decryptSnapshot(payload, key, space) {
   }
 }
 
-export function createSyncClient({ baseURL, storage = localStorage, fetcher = fetch }) {
+export function createSyncClient({ baseURL, pairingURL = baseURL, storage = localStorage, fetcher = fetch }) {
   const base = new URL(baseURL).origin;
+  const pairingPage = new URL(pairingURL);
   let state = { credentials: null, snapshot: emptySnapshot(), name: "", kind: "browser", lastSynced: null };
   try {
     const saved = JSON.parse(storage.getItem(STORAGE_KEY));
@@ -237,7 +238,8 @@ export function createSyncClient({ baseURL, storage = localStorage, fetcher = fe
         const result = await request("/invitations", { method: "POST", body: "{}" });
         const content = { base, invitation: result.invitation, key: state.credentials.key };
         const code = "RD1." + encode64(encoder.encode(JSON.stringify(content))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-        return { code, expires: result.expires, url: base + "/#pair=" + code };
+        pairingPage.hash = "pair=" + code;
+        return { code, expires: result.expires, url: pairingPage.href };
       });
     },
     rename(name) {

@@ -7,8 +7,10 @@ const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", tim
 const desktop = globalThis.redactDesktop;
 const motion = RedactMotion;
 const historyStore = desktop || RedactHistory;
+const localDashboard = !RedactConfig.pairingUrl && location.hostname === "127.0.0.1";
 const syncClient = RedactSync.createSyncClient({
-  baseURL: location.hostname === "127.0.0.1" ? location.origin : RedactConfig.syncUrl || RedactConfig.hostedUrl,
+  baseURL: localDashboard ? location.origin : RedactConfig.syncUrl,
+  pairingURL: localDashboard ? location.origin : RedactConfig.pairingUrl,
 });
 
 const routeNames = { tools: "AI tools", scan: "Check", history: "History", overview: "Overview", devices: "Devices" };
@@ -23,9 +25,9 @@ let draftBeforeDemo = "";
 let checkVersion = 0;
 let historyVersion = 0;
 let lastReview = null;
+let visibilityVersion = "original";
 let liveHistory = { state: "idle", enabled: false, summaries: [], extensionConnected: false };
 let toastTimer;
-const expandedGroups = new Set();
 
 function node(tag, className, value) {
   const item = document.createElement(tag);
@@ -107,8 +109,8 @@ function resetReview({ keepScore = false } = {}) {
   $("review-step").removeAttribute("aria-current");
   $("rewrite-card").hidden = true;
   $("rewrite-options").open = $("score-details").open = false;
-  $("highlighted").replaceChildren();
-  $("rewritten").textContent = "";
+  visibilityVersion = "original";
+  document.dispatchEvent(new CustomEvent("redact:preview", { detail: null }));
   $("save-check").hidden = true;
 }
 
@@ -149,27 +151,18 @@ function detailMark(match, value, style) {
   return mark;
 }
 
-function renderVisibility(version = $("visibility-body").dataset.version, animate = false) {
+function renderVisibility(version = visibilityVersion, animate = false) {
   if (!lastReview) return;
   const tool = demo ? null : selectedTool;
-  const recipient = tool?.name || "the AI";
   const hasSuggestion = lastReview.result.matches.length > 0;
   const suggested = hasSuggestion && version === "suggested";
-  const count = suggested ? lastReview.plan.matches.length : lastReview.result.matches.length;
-  $("visibility-heading").textContent = "What " + recipient + " would see";
-  $("visibility-note").textContent = "If you send this version, " + recipient + " receives the full text. Red marks private details Redact detected.";
-  const policy = $("visibility-policy");
-  policy.hidden = !tool?.privacy;
-  if (tool?.privacy) policy.href = tool.privacy;
-  $("visibility-tabs").hidden = !hasSuggestion;
-  $("visibility-body").dataset.version = suggested ? "suggested" : "original";
-  $("visibility-body").classList.toggle("has-private-details", count > 0);
-  $("highlighted").hidden = suggested;
-  $("rewrite-output").hidden = !suggested;
-  for (const button of $("visibility-tabs").querySelectorAll("button")) {
-    button.setAttribute("aria-pressed", String(button.dataset.visibility === $("visibility-body").dataset.version));
-  }
-  $("visibility-status").textContent = count ? count + (count === 1 ? " private detail flagged" : " private details flagged") : "No private details detected";
+  visibilityVersion = suggested ? "suggested" : "original";
+  document.dispatchEvent(new CustomEvent("redact:preview", { detail: {
+    tool, hasSuggestion, version: visibilityVersion,
+    count: suggested ? lastReview.plan.matches.length : lastReview.result.matches.length,
+    original: lastReview.text, originalSpans: lastReview.result.matches,
+    rewrite: lastReview.plan.text, rewriteSpans: lastReview.rewriteSpans,
+  } }));
   if (animate) motion.reveal(suggested ? $("rewrite-output") : $("highlighted"));
 }
 
@@ -177,7 +170,7 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   lastReview = { text, result, choices: {}, plan: null, pending, replaced };
   const hasFindings = result.matches.length > 0;
   const firstResult = $("check-result").hidden;
-  if (firstResult) $("visibility-body").dataset.version = "original";
+  if (firstResult) visibilityVersion = "original";
   $("check-result").hidden = false;
   $("draft-step").removeAttribute("aria-current");
   $("review-step").setAttribute("aria-current", "step");
@@ -208,8 +201,6 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   motion.findings();
 
   $("rewrite-card").hidden = !hasFindings;
-  paintDraft($("highlighted"), text, result.matches, match =>
-    detailMark(match, text.slice(match.start, match.end), "redact-mask"));
   $("rewrite-choices").replaceChildren();
   const counts = {};
   for (const match of result.matches) {
@@ -263,8 +254,7 @@ function updateRewrite() {
     }
   }
   spans.sort((a, b) => a.start - b.start);
-  paintDraft($("rewritten"), plan.text, spans, match =>
-    detailMark(match, plan.text.slice(match.start, match.end), match.placeholder ? "replacement-token" : "redact-mask"));
+  lastReview.rewriteSpans = spans;
   const kept = plan.edits.filter(edit => edit.action === "keep").length;
   $("rewrite-comparison").textContent = `Original ${result.score}/100 → Revised ${plan.score}/100. ` +
     (kept ? `${kept} detail${kept === 1 ? "" : "s"} kept by you. ` : "") +
@@ -790,61 +780,6 @@ async function renderSpecimen(mode, animate = true) {
   if (animate && after) motion.revealTokens([...draft.querySelectorAll("mark")]);
 }
 
-function renderTools() {
-  const query = $("tool-search").value.trim();
-  const preview = RedactCatalog.previewCount || 4;
-  const container = $("tool-groups");
-  container.replaceChildren();
-  let total = 0;
-  RedactCatalog.toolGroups.forEach((group, index) => {
-    const matches = group.tools.filter(tool => RedactCatalog.matchesQuery(tool, group.name, query));
-    if (!matches.length) return;
-    total += matches.length;
-    const id = "tool-group-" + index;
-    const searching = Boolean(query);
-    const expanded = searching || expandedGroups.has(group.name);
-    const extras = !searching && matches.length > preview ? matches.slice(preview) : [];
-    const section = node("section", "tool-group");
-    section.setAttribute("aria-labelledby", id + "-title");
-    const header = node("div", "tool-group-header");
-    const title = node("h2", null, group.name);
-    title.id = id + "-title";
-    header.append(title);
-    const list = node("ul", "tool-row");
-    list.id = id;
-    for (const [offset, tool] of matches.entries()) {
-      const tile = button("", "tool-tile", () => openTool(tool, group.name, tile));
-      tile.append(toolMark(tool), node("span", "tool-name", tool.name));
-      tile.setAttribute("aria-label", tool.name);
-      const item = node("li");
-      item.append(tile);
-      if (extras.length && offset >= preview && !expanded) item.hidden = true;
-      list.append(item);
-    }
-    if (extras.length) {
-      const label = "Show all " + matches.length;
-      const toggle = button(expanded ? "Show fewer" : label, "text-button", () => {
-        const open = expandedGroups.has(group.name);
-        if (open) expandedGroups.delete(group.name);
-        else expandedGroups.add(group.name);
-        toggle.setAttribute("aria-expanded", String(!open));
-        toggle.textContent = open ? label : "Show fewer";
-        for (const item of [...list.children].slice(preview)) {
-          item.hidden = open;
-          if (!open) motion.reveal(item);
-        }
-      });
-      toggle.setAttribute("aria-expanded", String(expanded));
-      toggle.setAttribute("aria-controls", id);
-      header.append(toggle);
-    }
-    section.append(header, list);
-    container.append(section);
-  });
-  $("no-tools").hidden = total > 0;
-  $("tool-search-status").textContent = query ? total + (total === 1 ? " tool found" : " tools found") : "";
-}
-
 async function showAi() {
   if (desktop?.getAiStatus) {
     const info = node("p", null, "Checking the local Ollama service…");
@@ -1028,15 +963,14 @@ $("copy-rewrite").addEventListener("click", () => {
   const destination = selectedTool && !demo ? " Open " + selectedTool.name + " and paste it there." : " Paste it into the AI tool you use.";
   void copy(lastReview.plan.text, "Suggestion copied." + destination);
 });
-for (const button of $("visibility-tabs").querySelectorAll("button")) {
-  button.addEventListener("click", () => {
-    if (button.getAttribute("aria-pressed") !== "true") renderVisibility(button.dataset.visibility, true);
-  });
-}
+document.addEventListener("redact:preview-version", event => renderVisibility(event.detail, true));
 $("copy-draft").addEventListener("click", () => {
   if (lastReview?.text === prompt.value) void copy(prompt.value, "Draft copied.");
 });
-$("tool-search").addEventListener("input", renderTools);
+document.addEventListener("redact:select-tool", event => {
+  const { tool, category, source } = event.detail;
+  openTool(tool, category, source);
+});
 for (const check of document.querySelectorAll("[data-check-any]")) {
   check.addEventListener("click", () => {
     selectedTool = null;
@@ -1072,7 +1006,6 @@ RedactHistoryUI.init({ openDialog, openDraft: text => {
   navigate("scan");
   prompt.focus({ preventScroll: true });
 } });
-renderTools();
 renderSpecimen("before", false);
 if (desktop) {
   document.body.classList.add("desktop-app");

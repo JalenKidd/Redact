@@ -22,7 +22,10 @@ async function getHistory() {
 }
 
 chrome.runtime.onMessageExternal.addListener((message, sender, reply) => {
-  if (message?.type !== "REDACT_HISTORY" || !RedactConfig.allowedOrigins.includes(originOf(sender.url))) return;
+  if (message?.type !== "REDACT_HISTORY") return;
+  const fromDashboard = RedactConfig.allowedOrigins.includes(originOf(sender.url));
+  const fromPages = sender.url?.startsWith(RedactConfig.pagesUrl);
+  if (!fromDashboard && !fromPages) return;
   return queued(getHistory, reply);
 });
 

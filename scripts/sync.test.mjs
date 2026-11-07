@@ -15,7 +15,8 @@ test("paired devices merge concurrent and offline checks, sync preferences, clea
   try {
     const worker = createWorker();
     const fetcher = (url, init) => worker.fetch(new Request(url, init), { DB: db });
-    const laptop = createSyncClient({ baseURL: origin, storage: storage(), fetcher });
+    const pairingURL = "https://jalenkidd.github.io/Redact/";
+    const laptop = createSyncClient({ baseURL: origin, pairingURL, storage: storage(), fetcher });
     let offline = false;
     const phoneStorage = storage();
     const phone = createSyncClient({ baseURL: origin, storage: phoneStorage, fetcher: (url, init) => {
@@ -25,6 +26,7 @@ test("paired devices merge concurrent and offline checks, sync preferences, clea
     const other = createSyncClient({ baseURL: origin, storage: storage(), fetcher });
     await laptop.create("Laptop", "computer", { appearance: "aurora", compact: false });
     const invite = await laptop.invitation();
+    assert.equal(invite.url, pairingURL + "#pair=" + invite.code);
     await phone.join(invite.url, "Phone", "phone");
     await assert.rejects(other.join(invite.code, "Other", "browser"), /already used/);
     const now = Date.now();

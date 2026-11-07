@@ -4,6 +4,8 @@
 
 Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second-judging-walkthrough).
 
+[Open Redact on GitHub Pages](https://jalenkidd.github.io/Redact/) on a phone or computer. The website and Electron app share the React interface.
+
 ## Run the Electron app
 
 1. Install Node.js **22.12 or newer**.
@@ -59,7 +61,7 @@ The expanded tests cover missed disclosures, benign topics, Unicode names, crede
 
 ## Sync your devices
 
-Open **Devices → Enable device sync** on your first device. Select **Add a device** to generate a one-time QR code or pairing link. Scan it with your phone, or paste the code under **Devices → Enter pairing code** on another device. The [web app](https://redact-pluto-hacks.electbush1.chatgpt.site) supports phone browsers and pairs with Electron.
+Open **Devices → Enable device sync** on your first device. Select **Add a device** to generate a one-time QR code or pairing link. Scan it with your phone, or paste the code under **Devices → Enter pairing code** on another device. The [web app](https://jalenkidd.github.io/Redact/) supports phone browsers and pairs with Electron.
 
 Redact encrypts saved check summaries and appearance preferences on the device before uploading them. Pairing links carry the encryption key in the URL fragment. The service stores encrypted summaries alongside the device names and connection times needed to manage the workspace. Prompt checks run locally. Removing a device blocks its future sync requests. You can clear the shared history in Devices.
 
@@ -100,6 +102,8 @@ Persistent imported history is deferred until an encrypted vault and deletion/sy
 Run `npm test` for parser/scoring/coverage/resource tests and `npm run test:import` for the real Electron import journey. On restricted Linux CI use `REDACT_HEADLESS=1 npm run test:import`. The smoke test uses synthetic in-memory files, verifies isolation from saved summaries and model calls, handles malformed replacements and inert markup, and checks clearing/reload behavior.
 
 ## Website and Chrome extension
+
+GitHub Actions publishes the React site from `main`. Use `npm run build:pages` to build the static site in `build/pages/`. The website uses Redact’s existing sync API for paired devices.
 
 1. Run `npm run dev` and open [the local dashboard](http://127.0.0.1:4173/).
 2. For inline checking, open `chrome://extensions` in Chrome. Turn on **Developer mode**, choose **Load unpacked**, and select the generated `build/extension` folder. Refresh ChatGPT.
