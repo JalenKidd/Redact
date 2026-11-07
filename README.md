@@ -16,6 +16,8 @@ Choose **Open Redact** to enter the workspace or **Take a quick tour** to rehear
 
 Redact opens to **AI tools**, a searchable directory with bundled [provider pictures](web/ai-logos/NOTICE.txt). Pick a tool to see its profile, load a sample, check a draft, or open the official site. **What the AI would see** previews the full text you would send and marks private details in red. Compare the original and suggested drafts, then copy the suggestion or replace the original. Every tool has a provider privacy link. **Check any prompt** works with tools outside the directory. To keep a summary, choose **Save check** and allow saving the first time.
 
+Open **Beyond this draft** to review other data the provider can receive, such as uploads, earlier messages, memory, and account or device data. ChatGPT, Claude, Gemini, and DeepSeek have provider-specific explanations and controls. The preview checks the draft text. The Chrome extension can also count earlier user messages visible in the current ChatGPT thread.
+
 ### Improved privacy checks and rewrite controls
 
 The scanner now catches explicit full-name introductions (including many accented and hyphenated names), common numbered street addresses, several first-person/family health disclosures, labeled passwords/tokens, and additional credential formats. These are English-oriented heuristics, not universal person-name, address, or medical recognition. Contextual AI can add further exact-span findings.
@@ -66,6 +68,12 @@ Open **Devices → Enable device sync** on your first device. Select **Add a dev
 Redact encrypts saved check summaries and appearance preferences on the device before uploading them. Pairing links carry the encryption key in the URL fragment. The service stores encrypted summaries alongside the device names and connection times needed to manage the workspace. Prompt checks run locally. Removing a device blocks its future sync requests. You can clear the shared history in Devices.
 
 Linked devices sync while Redact is open. **Sync now** refreshes immediately. Chrome extension summaries join the shared history when its connected dashboard is open. The **Overview** tab charts the saved summaries available to that workspace.
+
+## Redaction alerts
+
+**Replace draft** shows a **Draft redacted** notification and adds a session alert under **History → Redaction activity**. The Chrome extension shows **Redacted message sent** in ChatGPT when the unchanged replacement appears as a new user message after a send attempt. For those alerts in the dashboard, enable **Keep exposure history** in the extension and **Keep redaction alerts** in the dashboard, then keep Redact open in the same Chrome profile.
+
+With **Keep redaction alerts** on, Redact saves the provider, event type, time, and number of details replaced. Paired devices exchange these alerts encrypted, separately from saved check history. You can clear recent alerts from **Redaction activity**. Drafts and messages stay on the device. Web and desktop draft alerts report an edit, since Redact does not observe what you paste into another app.
 
 ## Import and analyze past ChatGPT conversations
 

@@ -132,6 +132,23 @@ async function api(request, env) {
 
   const device = await authenticate(request, db);
   if (path === "/api/sync/state" && request.method === "GET") return stateFor(device, db);
+  if (path === "/api/sync/activity" && request.method === "GET") {
+    const activity = await db.prepare("SELECT activity_version AS version, activity_payload AS payload FROM sync_spaces WHERE id = ?")
+      .bind(device.space_id).first();
+    if (!activity) throw new HttpError(401, "This sync space is unavailable.");
+    return { ...activity, serverTime: Date.now() };
+  }
+  if (path === "/api/sync/activity" && request.method === "PUT") {
+    const data = await body(request);
+    if (!Number.isSafeInteger(data.version) || data.version < 0 || typeof data.payload !== "string" ||
+        data.payload.length > 20_000 || !/^[A-Za-z0-9+/]{16}:[A-Za-z0-9+/]+={0,2}$/.test(data.payload)) {
+      throw new HttpError(400, "Invalid encrypted activity.");
+    }
+    const updated = await db.prepare("UPDATE sync_spaces SET activity_payload = ?, activity_version = activity_version + 1 WHERE id = ? AND activity_version = ? AND EXISTS (SELECT 1 FROM sync_devices WHERE id = ? AND token_hash = ?)")
+      .bind(data.payload, device.space_id, data.version, device.id, device.token_hash).run();
+    if (updated.meta.changes !== 1) throw new HttpError(409, "Another device updated redaction activity. Merge and retry.");
+    return { saved: true };
+  }
   if (path === "/api/sync/state" && request.method === "PUT") {
     const data = await body(request);
     if (!Number.isSafeInteger(data.version) || data.version < 0 || typeof data.payload !== "string" ||

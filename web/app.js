@@ -338,7 +338,8 @@ async function replaceDraft() {
     $("simulate-send").focus({ preventScroll: true });
     $("demo-send").scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
   } else if (activeRoute === "scan") $("result-heading").focus({ preventScroll: true });
-  notify("Selected details replaced. Review the draft before sharing.");
+  if (!demo && replacing.size) redactionActivity.recordDraft(selectedTool?.id || "any", replacing.size);
+  else notify("Selected details replaced. Review the draft before sharing.");
 }
 
 function seedHistory() {
@@ -460,10 +461,12 @@ async function refreshHistory() {
     void syncClient.sync().catch(() => {});
   }
   if (activeRoute === "history") renderHistory();
+  void redactionActivity.refresh(extension?.summaries);
   document.dispatchEvent(new Event("redact:history"));
 }
 
 function renderHistory() {
+  redactionActivity.render();
   $("history-import").hidden = Boolean(demo);
   $("history-options").hidden = Boolean(demo);
   const summaries = visibleSummaries();
@@ -742,7 +745,15 @@ function openTool(tool, category, source) {
 
   const visibility = node("section", "provider-visibility");
   visibility.append(node("h3", null, "What " + tool.name + " would see"),
-    node("p", null, "If you send a draft, " + tool.name + " receives the full text. Check it first to see private details highlighted in red."));
+    node("p", null, "Check a draft to highlight private details in red and review what " + tool.name + " can receive beyond the text."));
+  const context = RedactDataContext[tool.id];
+  if (context) {
+    const beyond = node("details", "beyond-draft");
+    beyond.append(node("summary", null, "Beyond this draft"),
+      node("p", null, context.conversation), node("p", null, context.account),
+      link(context.action.label + " ↗", context.action.url, "text-button"));
+    visibility.append(beyond);
+  }
   const footer = node("div", "provider-footer");
   const host = new URL(tool.url).hostname.replace(/^www\./, "");
   footer.append(node("span", "provider-host", host), node("span", null, "Prompt checks stay on this device"));
@@ -1000,6 +1011,7 @@ window.addEventListener("focus", () => {
   if (!demo) void refreshHistory();
 });
 
+const redactionActivity = RedactActivity.init({ sync: syncClient, notify, openDialog, isDemo: () => Boolean(demo) });
 RedactHistoryUI.init({ openDialog, openDraft: text => {
   if (demo) endDemo();
   setDraft(text);

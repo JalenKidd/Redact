@@ -84,3 +84,40 @@ test("paired devices merge concurrent and offline checks, sync preferences, clea
     db.close();
   }
 });
+
+test("redaction alerts sync separately, discard draft text, and stay cleared after retry", async () => {
+  const db = createLocalDatabase();
+  try {
+    const worker = createWorker();
+    const fetcher = (url, init) => worker.fetch(new Request(url, init), { DB: db });
+    const laptopStorage = storage();
+    const laptop = createSyncClient({ baseURL: origin, storage: laptopStorage, fetcher });
+    const phone = createSyncClient({ baseURL: origin, storage: storage(), fetcher });
+    await laptop.create("Laptop", "computer");
+    await phone.join((await laptop.invitation()).code, "Phone", "phone");
+    const draft = {
+      id: crypto.randomUUID(), timestamp: Date.now(), kind: "draft-redacted", provider: "claude", count: 2,
+      original: "private@example.com", suggested: "Write a thank you note.",
+    };
+    const sent = { id: crypto.randomUUID(), timestamp: Date.now(), kind: "chat-sent", provider: "chatgpt", count: 1 };
+    await Promise.all([laptop.syncActivity([draft]), phone.syncActivity([sent])]);
+    const alerts = await phone.syncActivity([sent]);
+    assert.equal(alerts.events.length, 2);
+    assert.deepEqual(alerts.events.find(event => event.id === draft.id), {
+      id: draft.id, timestamp: draft.timestamp, kind: draft.kind, provider: draft.provider, count: draft.count,
+    });
+    assert.deepEqual(laptop.status().summaries, []);
+    const { credentials } = JSON.parse(laptopStorage.getItem("redact.sync.v1"));
+    const cloud = await db.prepare("SELECT activity_payload FROM sync_spaces WHERE id = ?").bind(credentials.spaceId).first();
+    assert.match(cloud.activity_payload, /^[A-Za-z0-9+/]{16}:[A-Za-z0-9+/=]+$/);
+    assert.doesNotMatch(cloud.activity_payload, /private@example.com|claude|chat-sent/);
+    await assert.rejects(decryptSnapshot(cloud.activity_payload, credentials.key, credentials.spaceId), /could not decrypt/);
+    assert.equal((await fetcher(origin + "/api/sync/activity")).status, 401);
+    await laptop.syncActivity([], true);
+    assert.deepEqual((await phone.syncActivity([draft, sent])).events, []);
+    await laptop.remove(phone.status().deviceId);
+    await assert.rejects(phone.syncActivity(), /disconnected/);
+  } finally {
+    db.close();
+  }
+});

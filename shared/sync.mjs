@@ -1,4 +1,6 @@
 import "./scanner.js";
+import { mergeActivity } from "./activity.mjs";
+export { activityProviderName, cleanActivity, mergeActivity } from "./activity.mjs";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -66,24 +68,28 @@ async function keyFrom(raw) {
   return crypto.subtle.importKey("raw", decode64(raw), "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-export async function encryptSnapshot(snapshot, key, space) {
+async function encryptValue(value, key, scope) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const bytes = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: encoder.encode(space) },
-    await keyFrom(key), encoder.encode(JSON.stringify(snapshot)));
+  const bytes = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: encoder.encode(scope) },
+    await keyFrom(key), encoder.encode(JSON.stringify(value)));
   return encode64(iv) + ":" + encode64(new Uint8Array(bytes));
 }
 
-export async function decryptSnapshot(payload, key, space) {
-  if (!payload) return emptySnapshot();
+async function decryptValue(payload, key, scope) {
   const [nonce, ciphertext] = payload.split(":");
   const iv = decode64(nonce);
   if (iv.length !== 12 || !ciphertext) throw new Error("Invalid encrypted history.");
   try {
-    const bytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: encoder.encode(space) }, await keyFrom(key), decode64(ciphertext));
-    return cleanSnapshot(JSON.parse(decoder.decode(bytes)));
+    const bytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: encoder.encode(scope) }, await keyFrom(key), decode64(ciphertext));
+    return JSON.parse(decoder.decode(bytes));
   } catch {
     throw new Error("This device could not decrypt the synced history. Pair it again.");
   }
+}
+
+export const encryptSnapshot = encryptValue;
+export async function decryptSnapshot(payload, key, space) {
+  return payload ? cleanSnapshot(await decryptValue(payload, key, space)) : emptySnapshot();
 }
 
 export function createSyncClient({ baseURL, pairingURL = baseURL, storage = localStorage, fetcher = fetch }) {
@@ -217,6 +223,31 @@ export function createSyncClient({ baseURL, pairingURL = baseURL, storage = loca
       });
     },
     sync,
+    syncActivity(events = [], clear = false) {
+      return queue(async () => {
+        if (!state.credentials) throw new Error("This device is not connected.");
+        const { key, spaceId } = state.credentials;
+        const scope = spaceId + ":activity";
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const remote = await request("/activity");
+          const snapshot = mergeActivity(remote.payload ? await decryptValue(remote.payload, key, scope) : {});
+          const updated = clear ? {
+            events: [],
+            clearedAt: Math.max(remote.serverTime, snapshot.clearedAt, ...snapshot.events.map(event => event.timestamp),
+              ...mergeActivity({ events }).events.map(event => event.timestamp)),
+          } : mergeActivity(snapshot, { events });
+          if (JSON.stringify(updated) === JSON.stringify(snapshot)) return snapshot;
+          const payload = await encryptValue(updated, key, scope);
+          try {
+            await request("/activity", { method: "PUT", body: JSON.stringify({ version: remote.version, payload }) });
+            return updated;
+          } catch (failure) {
+            if (failure.status !== 409) throw failure;
+          }
+        }
+        throw new Error("Redaction activity is busy. Try syncing again.");
+      });
+    },
     ingest(summaries) {
       return queue(async () => {
         if (!state.credentials) return;

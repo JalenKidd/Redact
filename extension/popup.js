@@ -2,7 +2,7 @@ const toggle = document.querySelector("#history");
 const status = document.querySelector("#status");
 const clear = document.querySelector("#clear");
 const confirmation = document.querySelector("#confirm");
-document.querySelector("#dashboard").href = RedactConfig.hostedUrl + "/#history";
+document.querySelector("#dashboard").href = RedactConfig.pagesUrl + "#history";
 document.querySelector("#local-dashboard").href = RedactConfig.dashboardUrl + "/#history";
 
 async function preferences() {

@@ -16,6 +16,25 @@ function markedText(text, matches) {
   return output;
 }
 
+function BeyondDraft({ tool }) {
+  const context = globalThis.RedactDataContext[tool?.id];
+  return (
+    <details className="beyond-draft">
+      <summary><span>Beyond this draft</span><small>Earlier chats, uploads, and account data</small></summary>
+      <p>Redact checked the text above. Review these other sources in your AI app before you share.</p>
+      <dl>
+        <div><dt>Conversation and uploads</dt><dd>{context?.conversation ||
+          "Earlier messages, attachments, and enabled memory or connected apps can add context. What applies depends on the service."}</dd></div>
+        <div><dt>Account and device data</dt><dd>{context?.account ||
+          "Check the provider’s privacy policy for the account, activity, and device information it collects."}</dd></div>
+      </dl>
+      {context?.action && <a className="text-button" href={context.action.url} target="_blank" rel="noopener noreferrer">{context.action.label} ↗</a>}
+      {tool?.privacy && <a className="text-button" href={tool.privacy} target="_blank" rel="noopener noreferrer">Official privacy information ↗</a>}
+      {context && <small className="context-date">Consumer service · sources checked Nov 7, 2026</small>}
+    </details>
+  );
+}
+
 export function VisibilityPreview() {
   const [preview, setPreview] = useState(null);
   useLayoutEffect(() => {
@@ -53,6 +72,7 @@ export function VisibilityPreview() {
           <p id="rewritten" aria-label="Suggested draft">{preview && markedText(preview.rewrite, preview.rewriteSpans)}</p>
         </div>
       </div>
+      {preview && <BeyondDraft key={preview.tool?.id || "any"} tool={preview.tool} />}
     </section>
   );
 }

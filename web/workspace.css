@@ -214,6 +214,24 @@ body[data-appearance="midnight"] #scan-page :is(.redact-mask, .replacement-token
 .visibility-head h3 { font: 780 21px/1.25 var(--display); letter-spacing: -.04em; }
 .visibility-head .text-button { font-size: 12px; }
 .visibility-note { color: var(--muted); font-size: 12px; margin: 3px 0 8px; }
+.beyond-draft { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; }
+.beyond-draft summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.beyond-draft summary small { display: block; margin: 3px 0 0 13px; color: var(--muted); font-weight: 500; }
+.beyond-draft p, .beyond-draft dd { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.beyond-draft dl { margin: 11px 0; display: grid; gap: 8px; }
+.beyond-draft dt { font-weight: 700; font-size: 13px; }
+.beyond-draft dd { margin-top: 2px; }
+.beyond-draft a { display: inline-block; margin: 5px 12px 2px 0; }
+.beyond-draft .context-date { display: block; margin-top: 5px; color: var(--muted); }
+.redaction-activity { display: grid; gap: 10px; padding: 18px; margin-bottom: 12px; }
+.activity-heading, .activity-items li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.activity-heading h2 { margin: 2px 0 0; }
+.redaction-activity p, .activity-items time { margin: 0; color: var(--muted); font-size: 13px; }
+.activity-items { list-style: none; padding: 0; margin: 0; }
+.activity-items li { padding: 9px 0; border-top: 1px solid var(--line); }
+.activity-settings summary { cursor: pointer; font-size: 13px; font-weight: 700; }
+.activity-settings label { display: flex; gap: 7px; align-items: center; margin-top: 10px; }
+.activity-settings p { margin-top: 6px; }
 .visibility-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; width: fit-content; margin-bottom: 8px; background: var(--field); border: 1px solid var(--line); border-radius: 9px; }
 .visibility-tabs button { min-height: 33px; padding: 4px 9px; border-radius: 6px; color: var(--muted); font-size: 12px; font-weight: 660; }
 .visibility-tabs button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 4px #2b20111c; }

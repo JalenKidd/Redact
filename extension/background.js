@@ -58,6 +58,10 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       const kinds = [...new Set(message.kinds.filter(kind => typeof kind === "string" && Object.hasOwn(Redact.categories, kind)))];
       const score = Math.min(100, kinds.reduce((total, kind) => total + Redact.categories[kind].points, 0));
       const summary = { provider: "ChatGPT", timestamp: Date.now(), score, kinds };
+      if (Number.isSafeInteger(message.redactedCount) && message.redactedCount > 0 && message.redactedCount <= 20_000) {
+        summary.redactedCount = message.redactedCount;
+        summary.redactionId = crypto.randomUUID();
+      }
       await chrome.storage.local.set({ summaries: [summary, ...summaries].slice(0, HISTORY_LIMIT) });
       return { saved: true };
     }, reply);

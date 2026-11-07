@@ -4,6 +4,8 @@ export const spaces = sqliteTable("sync_spaces", {
   id: text("id").primaryKey(),
   payload: text("payload"),
   version: integer("version").notNull().default(0),
+  activityPayload: text("activity_payload"),
+  activityVersion: integer("activity_version").notNull().default(0),
 });
 
 export const devices = sqliteTable("sync_devices", {

@@ -328,7 +328,7 @@
   });
   new ResizeObserver(() => motion.navigation(document.querySelector("[data-route].active"), false)).observe(document.querySelector("nav"));
   setInterval(() => {
-    if (!demo && syncClient.status().connected) void refreshHistory();
+    if (!demo && (syncClient.status().connected || (!desktop && redactionActivity.isKeeping()))) void refreshHistory();
   }, 12_000);
   if (location.hash.startsWith("#pair=")) {
     const code = location.hash.slice(6);

@@ -128,6 +128,18 @@ function HistoryPage() {
   return (
     <section id="history-page" className="page" hidden>
       <div className="page-heading"><div><div className="section-kicker">SAVED CHECKS</div><h1>History<span>.</span></h1><p>Find the checks you’ve saved.</p></div></div>
+      <section className="card redaction-activity" id="redaction-activity" aria-labelledby="activity-heading">
+        <div className="activity-heading"><div><div className="section-kicker">REDACT ALERTS</div><h2 id="activity-heading">Redaction activity</h2></div>
+          <button type="button" className="text-button" id="activity-clear" hidden>Clear alerts</button></div>
+        <p id="activity-status">Redactions will appear here when you apply them.</p>
+        <ul id="activity-items" className="activity-items" hidden></ul>
+        <details className="activity-settings">
+          <summary>Alert settings</summary>
+          <label><input type="checkbox" id="activity-keep" /> Keep redaction alerts</label>
+          <p>Save what happened, the provider, the time, and the number of details replaced. If you pair devices, those alerts sync encrypted. Prompt text stays on your device.</p>
+          <p>For ChatGPT send alerts here, enable exposure history in the Chrome extension and open Redact in the same browser.</p>
+        </details>
+      </section>
       <section className="card history-card" aria-label="Saved checks">
         <div id="history-content"></div>
       </section>

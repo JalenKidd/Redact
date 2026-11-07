@@ -29,15 +29,19 @@
     .main { border: 0; background: #22211e; color: #fffaf0; padding: 7px 10px; border-radius: 8px; font-weight: 750; }
     .quiet { border: 0; color: #a1321e; background: transparent; padding: 5px 0; text-align: left; }
     .status { color: #686259; margin: 5px 0 9px; }
+    .chat-context { margin: 8px 0; color: #514936; font-size: 12px; }
+    .send-alert { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 2147483647; width: max-content; max-width: 75vw; border-radius: 10px; padding: 9px 12px; background: #22211e; color: #fffaf0; box-shadow: 0 6px 22px #15110c44; }
   `;
   const wrap = document.createElement("div");
   wrap.className = "wrap";
   wrap.innerHTML = `
     <button type="button" class="launch" aria-expanded="false" aria-controls="redact-panel"><span class="mark" aria-hidden="true">▰</span> Check with Redact</button>
+    <div class="send-alert" role="status" hidden></div>
     <section class="panel" id="redact-panel" aria-label="Redact exposure check" hidden>
       <div class="top"><span class="eyebrow">REDACT / DRAFT CHECK</span><button class="close" type="button" aria-label="Close draft check">×</button></div>
       <div class="score" aria-live="polite"></div>
       <div class="status" role="status"></div>
+      <p class="chat-context"></p>
       <ul class="reasons" hidden></ul>
       <div class="suggestion" hidden><span class="eyebrow">SUGGESTED DRAFT</span><div class="rewrite"></div></div>
       <div class="actions">
@@ -56,6 +60,8 @@
   const rewrite = root.querySelector(".rewrite");
   const replace = root.querySelector(".replace");
   const enable = root.querySelector(".enable");
+  const context = root.querySelector(".chat-context");
+  const sendAlert = root.querySelector(".send-alert");
 
   const turnSelector = '[data-message-author-role="user"]';
   const seenTurns = new WeakSet();
@@ -65,6 +71,8 @@
   let historyEnabled = false;
   let staged = null;
   let expiry;
+  let appliedRedaction = null;
+  let alertTimer;
 
   function read(element) {
     return element instanceof HTMLTextAreaElement ? element.value : element?.innerText || "";
@@ -116,6 +124,9 @@
     const text = read(current);
     const version = ++scanVersion;
     setPanel(true);
+    const earlier = document.querySelectorAll(turnSelector).length;
+    context.textContent = (earlier ? "Earlier messages from you visible in this chat: " + earlier + ". " : "") +
+      "ChatGPT may also have uploads or memory. This check covers the draft text.";
     if (text.length > Redact.maxLength) {
       review = null;
       score.textContent = "Not scored";
@@ -180,6 +191,7 @@
       return;
     }
     const replacement = review.result.rewritten;
+    const count = review.result.matches.length;
     composer.focus();
     if (composer instanceof HTMLTextAreaElement) {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(composer, replacement);
@@ -192,6 +204,7 @@
       selection.addRange(range);
       document.execCommand("insertText", false, replacement);
     }
+    appliedRedaction = { composer, normalized: normalize(replacement), count };
     if (normalize(read(composer)) !== normalize(replacement)) {
       status.textContent = "Could not update the composer. You can copy the suggested draft above.";
       return;
@@ -208,22 +221,31 @@
   }
 
   function stage() {
-    if (!historyEnabled || !composer?.isConnected) return;
+    if (!composer?.isConnected) return;
     const text = read(composer);
     if (text.length > Redact.maxLength) return;
     const normalized = normalize(text);
     if (!normalized) return;
+    const redactedCount = appliedRedaction?.composer === composer && appliedRedaction.normalized === normalized ? appliedRedaction.count : 0;
+    if (!historyEnabled && !redactedCount) return;
     if (staged?.normalized === normalized && staged.composer === composer) return;
     clearStaged();
     for (const turn of document.querySelectorAll(turnSelector)) seenTurns.add(turn);
     staged = {
       composer,
       normalized,
+      redactedCount,
       kinds: (review?.text === text && review.original === composer ? review.result : Redact.scan(text))
         .reasons.map(reason => reason.kind),
     };
     expiry = setTimeout(clearStaged, 12_000);
   }
+
+  document.addEventListener("input", event => {
+    if (appliedRedaction?.composer.contains(event.target) && normalize(read(composer)) !== appliedRedaction.normalized) {
+      appliedRedaction = null;
+    }
+  }, true);
 
   document.addEventListener("click", event => {
     const button = event.target.closest?.('button[data-testid="send-button"], button#composer-submit-button[aria-label="Send prompt"]');
@@ -242,6 +264,7 @@
     if (current !== composer) {
       composer = current;
       review = null;
+      appliedRedaction = null;
       ++scanVersion;
       setPanel(false);
     }
@@ -260,12 +283,19 @@
       if (!normalized) continue;
       seenTurns.add(turn);
       if (normalized !== staged.normalized) continue;
-      const { kinds } = staged;
+      const { kinds, redactedCount } = staged;
       clearStaged();
       review = null;
       ++scanVersion;
       setPanel(false);
-      void chrome.runtime.sendMessage({ type: "REDACT_LOG", kinds }).catch(() => {});
+      appliedRedaction = null;
+      if (redactedCount) {
+        sendAlert.textContent = "Redacted message sent · " + redactedCount + (redactedCount === 1 ? " private detail replaced" : " private details replaced");
+        sendAlert.hidden = false;
+        clearTimeout(alertTimer);
+        alertTimer = setTimeout(() => { sendAlert.hidden = true; }, 5000);
+      }
+      if (historyEnabled) void chrome.runtime.sendMessage({ type: "REDACT_LOG", kinds, redactedCount }).catch(() => {});
       break;
     }
   }
@@ -278,7 +308,7 @@
     if (area === "local" && changes.enabled) {
       settingsChanged = true;
       historyEnabled = changes.enabled.newValue === true;
-      if (!historyEnabled) clearStaged();
+      if (!historyEnabled && !staged?.redactedCount) clearStaged();
     }
   });
   void chrome.runtime.sendMessage({ type: "REDACT_PREFERENCES" }).then(result => {

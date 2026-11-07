@@ -51,3 +51,26 @@ globalThis.RedactPolicies = Object.freeze([
     },
   },
 ]);
+
+globalThis.RedactDataContext = Object.freeze({
+  chatgpt: {
+    conversation: "Earlier messages and uploads can be part of a chat. Memory, custom instructions, and connected services can add context when available and enabled.",
+    account: "OpenAI can collect account and payment details, usage logs, IP address, and device information.",
+    action: { label: "Review ChatGPT memory", url: "https://help.openai.com/en/articles/8590148-memory-in-chatgpt" },
+  },
+  claude: {
+    conversation: "Claude can receive attached documents and images. Depending on your settings, it can also search earlier chats or use memory.",
+    account: "Anthropic can collect identity and contact details, payment information, and technical information.",
+    action: { label: "Review Claude memory controls", url: "https://support.claude.com/en/articles/11817273-use-claude-s-chat-search-and-memory-to-build-on-previous-context" },
+  },
+  gemini: {
+    conversation: "Gemini can receive files, shared screens, and imported chats. Depending on your settings, past chats and connected apps can add context.",
+    account: "Google can collect device and browser information, activity, and location information.",
+    action: { label: "Review Gemini Apps Activity", url: "https://myactivity.google.com/product/gemini" },
+  },
+  deepseek: {
+    conversation: "DeepSeek says it may collect uploaded files, photos, voice input, and chat history.",
+    account: "DeepSeek can collect account details and information about your device, network, and activity.",
+    action: { label: "Review DeepSeek data choices", url: "https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html#your-choices" },
+  },
+});
