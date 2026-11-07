@@ -4,6 +4,7 @@
   const spring = "cubic-bezier(.22, 1, .36, 1)";
   let scoreFrame;
   let tabAnimation;
+  let sweep;
   let pageTransition;
   let routeVersion = 0;
 
@@ -13,14 +14,15 @@
     const parent = tab.parentElement.getBoundingClientRect();
     const old = indicator.getBoundingClientRect();
     const next = tab.getBoundingClientRect();
-    const position = rect => "translate(" + (rect.left - parent.left) + "px," + (rect.top - parent.top) + "px)";
+    const position = rect => "translate(" + (rect.left - parent.left - tab.parentElement.clientLeft) + "px," +
+      (rect.top - parent.top - tab.parentElement.clientTop) + "px)";
     tabAnimation?.cancel();
     Object.assign(indicator.style, { transform: position(next), width: next.width + "px", height: next.height + "px" });
     if (!reduced() && animate && old.width) {
       tabAnimation = indicator.animate([
         { transform: position(old), width: old.width + "px", height: old.height + "px" },
         { transform: position(next), width: next.width + "px", height: next.height + "px" },
-      ], { duration: 420, easing: "cubic-bezier(.25,1.25,.4,1)" });
+      ], { duration: 290, easing: spring });
     }
   }
 
@@ -32,9 +34,12 @@
       render(to, animate);
       window.scrollTo(0, 0);
     };
-    if (from === to || reduced() || !document.startViewTransition) return show(true);
-    const order = Object.keys(routes);
     const root = document.documentElement;
+    if (from === to || reduced() || !document.startViewTransition) {
+      delete root.dataset.slide;
+      return show(true);
+    }
+    const order = Object.keys(routes);
     root.dataset.slide = order.indexOf(to) > order.indexOf(from) ? "next" : "previous";
     pageTransition = document.startViewTransition(() => show(false));
     void pageTransition.finished.catch(() => {}).finally(() => {
@@ -45,17 +50,17 @@
   function reveal(element) {
     if (reduced() || element.hidden) return;
     element.animate([
-      { opacity: 0, transform: "translateY(12px)" },
+      { opacity: 0, transform: "translateY(7px)" },
       { opacity: 1, transform: "translateY(0)" },
-    ], { duration: 380, easing: spring });
+    ], { duration: 270, easing: spring });
   }
 
   function page(element, direction = 1) {
     if (reduced()) return;
     element.animate([
-      { opacity: 0, transform: "translateX(" + direction * 18 + "px) scale(.992)" },
-      { opacity: 1, transform: "translateX(0) scale(1)" },
-    ], { duration: 380, easing: spring });
+      { opacity: 0, transform: "translate(" + direction * 12 + "px, 5px)" },
+      { opacity: 1, transform: "none" },
+    ], { duration: 290, easing: spring });
   }
 
   function score(target) {
@@ -86,23 +91,42 @@
     document.getElementById("score-track-value").style.strokeDashoffset = "100";
   }
 
-  function scan() {
+  async function scan() {
     if (reduced()) return;
-    document.querySelector(".scan-light").animate([
-      { opacity: 0, transform: "translateY(-12px)" },
-      { opacity: .85, offset: .18 },
-      { opacity: .55, offset: .8 },
-      { opacity: 0, transform: "translateY(260px)" },
-    ], { duration: 650, easing: "ease-in-out" });
+    sweep?.cancel();
+    const line = document.querySelector(".scan-light");
+    sweep = line.animate([
+      { opacity: 0, transform: "translateY(-26px)" },
+      { opacity: 1, offset: .2 },
+      { opacity: .8, offset: .78 },
+      { opacity: 0, transform: "translateY(" + line.parentElement.clientHeight + "px)" },
+    ], { duration: 340, easing: "ease-in-out" });
+    await sweep.finished.catch(() => {});
   }
 
-  async function redact(marks) {
+  function specimen(draft, after) {
     if (reduced()) return;
-    const animations = marks.map((mark, index) => mark.animate([
-      { backgroundColor: "#e9defb", color: "#7853a6", transform: "scaleX(1)" },
-      { backgroundColor: "#30243f", color: "#30243f", transform: "scaleX(1.02)" },
-    ], { duration: 240, delay: index * 45, easing: spring, fill: "forwards" }));
+    draft.animate([
+      { opacity: .5, transform: "translateY(4px)" },
+      { opacity: 1, transform: "none" },
+    ], { duration: 230, easing: spring });
+    if (after) {
+      for (const [index, mark] of [...draft.querySelectorAll("mark")].entries()) {
+        mark.animate([{ backgroundColor: "#ff704f", color: "#292019" }, { backgroundColor: "#302821", color: "#fffaf0" }],
+          { duration: 330, delay: index * 65, easing: spring, fill: "backwards" });
+      }
+    }
+  }
+
+  async function redact(marks, individual) {
+    if (reduced()) return;
+    const frames = individual
+      ? [{ backgroundColor: "#ffdfd3", color: "#802e1e" }, { backgroundColor: "#28221d", color: "#28221d" }]
+      : [{ opacity: 1, clipPath: "inset(0)" }, { opacity: .4, clipPath: "inset(0 0 95% 0)" }];
+    const animations = marks.map((mark, index) => mark.animate(frames,
+      { duration: individual ? 205 : 175, delay: Math.min(index, 4) * 30, easing: spring, fill: "forwards" }));
     await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
+    for (const animation of animations) animation.cancel();
   }
 
   function findings() {
@@ -115,5 +139,5 @@
     });
   }
 
-  globalThis.RedactMotion = Object.freeze({ reveal, page, navigation, switchPage, score, resetScore, scan, redact, findings });
+  globalThis.RedactMotion = Object.freeze({ reveal, page, navigation, switchPage, score, resetScore, scan, specimen, redact, findings });
 })();

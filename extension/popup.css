@@ -1,18 +1,19 @@
 * { box-sizing: border-box; }
-body { width: 300px; margin: 0; color: #211a33; background: #f7f4fb; font: 13px/1.45 system-ui, sans-serif; }
-header { display: flex; align-items: center; gap: 10px; background: #201a31; color: #fff; padding: 15px; }
-header strong { font-size: 18px; letter-spacing: -.04em; }
+body { width: 300px; margin: 0; color: #211f1b; background: #f5f3ed; font: 13px/1.5 system-ui, sans-serif; }
+header { display: flex; align-items: center; gap: 10px; background: #22211e; color: #fffaf0; padding: 15px; }
+header strong { font: 800 22px/1.2 "Avenir Next", system-ui, sans-serif; letter-spacing: -.06em; }
 small { display: block; font: 10px/1.6 ui-monospace, monospace; }
-header small { color: #d7f57a; letter-spacing: .07em; }
+header small { color: #ff9d85; letter-spacing: .07em; }
 main { padding: 0 15px 14px; }
-section { background: #fff; border: 1px solid #e8e0f2; border-radius: 12px; padding: 11px; margin: 12px 0; }
+section { background: #fffefa; border: 1px solid #ded9cd; border-radius: 12px; padding: 11px; margin: 12px 0; }
 label { font-weight: 750; display: flex; justify-content: space-between; gap: 10px; }
-section p { margin: 5px 0 8px; color: #625770; }
-input { accent-color: #6b48b6; }
-a, button { font: inherit; display: block; color: #472e80; cursor: pointer; }
+section p { margin: 5px 0 8px; color: #686259; }
+input { accent-color: #a1321e; }
+a, button { font: inherit; display: block; color: #a1321e; cursor: pointer; }
+:focus-visible { outline: 2px solid #a1321e; outline-offset: 3px; }
 a { padding: 4px 0; font-weight: 700; }
 button { border: 0; background: transparent; padding: 6px 0 0; text-decoration: underline; }
 button:disabled { cursor: default; opacity: .5; }
-dialog { width: 235px; border: 1px solid #d9caed; border-radius: 12px; }
-dialog::backdrop { background: #211a3380; }
+dialog { width: 235px; color: #211f1b; background: #fffefa; border: 1px solid #ded9cd; border-radius: 12px; }
+dialog::backdrop { background: #211c167f; }
 form { display: flex; gap: 15px; }

@@ -1,14 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="body" x1="8" y1="2" x2="120" y2="128" gradientUnits="userSpaceOnUse"><stop stop-color="#45405f"/><stop offset=".5" stop-color="#29243e"/><stop offset="1" stop-color="#191627"/></linearGradient>
-    <linearGradient id="edge" x1="10" y1="0" x2="108" y2="128" gradientUnits="userSpaceOnUse"><stop stop-color="#b3a9d1"/><stop offset=".5" stop-color="#5e536f"/><stop offset="1" stop-color="#29223b"/></linearGradient>
-    <linearGradient id="bars" x1="35" y1="27" x2="94" y2="105" gradientUnits="userSpaceOnUse"><stop stop-color="#edffc6"/><stop offset="1" stop-color="#b4e476"/></linearGradient>
-    <linearGradient id="sheen" x1="8" y1="0" x2="100" y2="115" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity=".13"/><stop offset=".58" stop-color="#fff" stop-opacity="0"/></linearGradient>
-  </defs>
-  <rect x="7" y="6" width="114" height="116" rx="32" fill="#14101f" opacity=".12"/>
-  <rect x="7" y="4" width="114" height="114" rx="31" fill="url(#body)" stroke="url(#edge)" stroke-width="1.5"/>
-  <rect x="8" y="5" width="112" height="112" rx="30" fill="url(#sheen)"/>
-  <path d="M35 35h57M35 61h33M35 87h47" stroke="url(#bars)" stroke-width="11" stroke-linecap="round"/>
-  <circle cx="91" cy="61" r="5.5" fill="#a394c6"/>
-  <path d="m86 82 10 10" stroke="#a394c6" stroke-width="6" stroke-linecap="round"/>
+  <rect x="5" y="5" width="118" height="118" rx="27" fill="#22211e"/>
+  <rect x="6" y="6" width="116" height="116" rx="26" fill="none" stroke="#5d5549" stroke-width="2"/>
+  <path d="M34 42h62M34 63h43M34 84h62" stroke="#ff704f" stroke-width="9" stroke-linecap="round"/>
+  <path d="M26 33v-5h6m64 0h6v5M26 95v5h6m64 0h6v-5" fill="none" stroke="#fffaf0" stroke-opacity=".7" stroke-width="2" stroke-linecap="round"/>
 </svg>

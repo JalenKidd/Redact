@@ -10,7 +10,7 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 2. Run `npm ci` in this folder.
 3. Run `npm start` to open Redact as a native Electron desktop app.
 
-The welcome screen uses a two-beat logo and wordmark animation inspired by Pulse. Choose **Open Redact** to enter the workspace, or **Take a quick tour** to rehearse the demo. **Replay welcome** repeats the introduction. Page transitions, score counts, and redaction effects follow the system’s reduced-motion preference.
+Choose **Open Redact** to enter the workspace or **Take a quick tour** to rehearse the demo. On the home screen, switch between **Before** and **After** to see how Redact handles a fictional prompt, then choose **Try this example** to check it yourself. **Replay welcome** repeats the introduction. Page transitions, the scan sweep, and redaction effects follow the system’s reduced-motion preference.
 
 Redact opens to **AI tools**, a searchable directory grouped like a simple app list. Pick a tool and choose **Check a prompt** to use the local scanner, or **Open** the official site. After a check, copy the suggested draft and paste it yourself. Scores and privacy settings stay behind expandable controls. **Check any prompt** also works with services outside the directory. To keep a summary, choose **Save check** and allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
 

@@ -96,6 +96,8 @@ function resetReview({ keepScore = false } = {}) {
   $("check-prompt").disabled = false;
   if (!keepScore) motion.resetScore();
   $("check-result").hidden = true;
+  $("draft-step").setAttribute("aria-current", "step");
+  $("review-step").removeAttribute("aria-current");
   $("rewrite-card").hidden = true;
   $("rewrite-options").open = $("score-details").open = false;
   $("highlighted").replaceChildren();
@@ -125,7 +127,7 @@ function resultSummary(result, { pending = false, replaced = false } = {}) {
   if (pending) return "Checking your draft on this device…";
   if (replaced) return "Review your updated draft before sharing it.";
   const labels = result.reasons.map(reason => {
-    const label = reason.label.toLowerCase();
+    const label = reason.label.charAt(0).toLowerCase() + reason.label.slice(1);
     return (/^[aeiou]/.test(label) ? "an " : "a ") + label;
   });
   if (!labels.length) return "Redact did not find private details on this device. Take one more look before you share.";
@@ -135,10 +137,12 @@ function resultSummary(result, { pending = false, replaced = false } = {}) {
 }
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
-  lastReview = { text, result, choices: {}, plan: null, pending };
+  lastReview = { text, result, choices: {}, plan: null, pending, replaced };
   const hasFindings = result.matches.length > 0;
   const firstResult = $("check-result").hidden;
   $("check-result").hidden = false;
+  $("draft-step").removeAttribute("aria-current");
+  $("review-step").setAttribute("aria-current", "step");
   $("result-heading").textContent = hasFindings ? "Private details found" : "No private details found";
   $("result-summary").textContent = resultSummary(result, { pending, replaced });
   $("result-labels").replaceChildren(...result.reasons.slice(0, 3).map(reason => node("li", "reason-chip", reason.label)));
@@ -148,7 +152,7 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   $("save-check").textContent = "Save check";
   const tag = tone(result.score);
   motion.score(result.score);
-  $("score-ring").style.setProperty("--score-color", { high: "#d38c69", moderate: "#d4a96a", low: "#8ba969", clear: "#a3b884" }[tag]);
+  $("score-ring").style.setProperty("--score-color", tag === "high" || tag === "moderate" ? "var(--accent)" : "var(--good)");
   $("score-rating").textContent = Redact.rating(result.score);
   $("score-rating").className = "score-badge " + tag;
   $("score-description").textContent = replaced ? "Draft replaced. Review it before sharing." :
@@ -235,20 +239,25 @@ async function runCheck() {
   }
 
   const version = ++checkVersion;
-  motion.scan();
+  $("check-prompt").disabled = true;
   const rules = Redact.scan(text);
+  const contextual = demo ? null : RedactModel.check(text).catch(() => rules);
+  await motion.scan();
+  if (version !== checkVersion) return;
   showResult(text, rules, { pending: !demo });
   if (activeRoute === "scan") {
     $("result-heading").focus({ preventScroll: true });
-    $("check-result").scrollIntoView({ behavior: scrollBehavior(), block: "start" });
+    if (!matchMedia("(min-width: 865px)").matches) {
+      $("check-result").scrollIntoView({ behavior: scrollBehavior(), block: "start" });
+    }
   }
   if (demo) {
     updateDemo(rules.matches.length ? "02 / Review the flagged details, then choose Replace draft." :
       "03 / Your practice draft is ready. Simulate a send to see its exposure summary.");
     $("demo-send").hidden = !!rules.matches.length;
-  } else if (version === checkVersion) {
-    $("check-prompt").disabled = true;
-    const result = await RedactModel.check(text);
+    $("check-prompt").disabled = false;
+  } else {
+    const result = await contextual;
     if (version === checkVersion) {
       showResult(text, result);
       $("check-prompt").disabled = false;
@@ -267,7 +276,7 @@ async function replaceDraft() {
   const choices = $("rewrite-choices").querySelectorAll("select");
   $("replace-draft").disabled = true;
   choices.forEach(select => { select.disabled = true; });
-  await motion.redact(marks);
+  await motion.redact(marks.length ? marks : [$("rewritten")], marks.length > 0);
   if (review !== lastReview || review.text !== prompt.value) return;
   $("replace-draft").disabled = false;
   choices.forEach(select => { select.disabled = false; });
@@ -640,6 +649,7 @@ function renderDestination() {
     destination.href = tool.url;
     destination.textContent = "Open " + tool.name + " ↗";
   }
+  if (lastReview) $("result-summary").textContent = resultSummary(lastReview.result, lastReview);
   renderResultActions();
 }
 
@@ -667,6 +677,29 @@ function openTool(tool) {
   openDialog("AI TOOLS", tool.name, identity, actions, ...(privacy ? [privacy] : []));
 }
 
+const specimenScan = Redact.scan(Redact.sample);
+const specimenPlan = Redact.rewrite(Redact.sample, specimenScan);
+
+function renderSpecimen(mode, animate = true) {
+  const after = mode === "after";
+  const specimen = $("specimen");
+  specimen.dataset.mode = mode;
+  for (const control of specimen.querySelectorAll("[data-specimen]")) {
+    control.setAttribute("aria-pressed", String(control.dataset.specimen === mode));
+  }
+  const draft = node("p");
+  let offset = 0;
+  for (const [index, match] of specimenScan.matches.entries()) {
+    draft.append(document.createTextNode(Redact.sample.slice(offset, match.start)));
+    draft.append(node("mark", after ? "cleaned" : null, after ? specimenPlan.edits[index].after : Redact.sample.slice(match.start, match.end)));
+    offset = match.end;
+  }
+  draft.append(document.createTextNode(Redact.sample.slice(offset)));
+  $("specimen-content").replaceChildren(draft);
+  $("specimen-status").textContent = after ? "Example · details replaced" : "Fictional example";
+  if (animate) motion.specimen(draft, after);
+}
+
 function renderTools() {
   const query = $("tool-search").value.trim();
   const preview = RedactCatalog.previewCount || 4;
@@ -687,7 +720,7 @@ function renderTools() {
     const title = node("h2", null, group.name);
     title.id = id + "-title";
     header.append(title);
-    const list = node("ul", "tool-row" + (expanded && extras.length ? " expanded" : ""));
+    const list = node("ul", "tool-row");
     list.id = id;
     for (const [offset, tool] of matches.entries()) {
       const tile = button("", "tool-tile", () => openTool(tool));
@@ -701,9 +734,15 @@ function renderTools() {
     if (extras.length) {
       const label = "Show all " + matches.length;
       const toggle = button(expanded ? "Show fewer" : label, "text-button", () => {
-        if (expandedGroups.has(group.name)) expandedGroups.delete(group.name);
+        const open = expandedGroups.has(group.name);
+        if (open) expandedGroups.delete(group.name);
         else expandedGroups.add(group.name);
-        renderTools();
+        toggle.setAttribute("aria-expanded", String(!open));
+        toggle.textContent = open ? label : "Show fewer";
+        for (const item of [...list.children].slice(preview)) {
+          item.hidden = open;
+          if (!open) motion.reveal(item);
+        }
       });
       toggle.setAttribute("aria-expanded", String(expanded));
       toggle.setAttribute("aria-controls", id);
@@ -791,8 +830,8 @@ async function enterWorkspace(tour = false) {
   const welcome = $("welcome-screen");
   const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 380;
   await welcome.animate([
-    { opacity: 1, transform: "scale(1)", filter: "blur(0)" },
-    { opacity: 0, transform: "scale(1.025)", filter: "blur(3px)" },
+    { opacity: 1, transform: "translateY(0)" },
+    { opacity: 0, transform: "translateY(-12px)" },
   ], { duration, easing: "cubic-bezier(.22, 1, .36, 1)" }).finished.catch(() => {});
   welcome.hidden = true;
   $("workspace").inert = false;
@@ -869,6 +908,19 @@ $("load-example").addEventListener("click", () => {
   if (demo) updateDemo("01 / Check this fictional draft before sharing it with AI.");
   prompt.focus();
 });
+for (const control of document.querySelectorAll("[data-specimen]")) {
+  control.addEventListener("click", () => {
+    if (control.getAttribute("aria-pressed") !== "true") renderSpecimen(control.dataset.specimen);
+  });
+}
+$("check-example").addEventListener("click", () => {
+  if (demo) endDemo();
+  selectedTool = null;
+  setDraft(Redact.sample);
+  renderDestination();
+  focusDraftOnScan = true;
+  navigate("scan");
+});
 $("clear-draft").addEventListener("click", () => {
   setDraft("");
   $("demo-send").hidden = true;
@@ -925,6 +977,7 @@ RedactHistoryUI.init({ openDialog, openDraft: text => {
   prompt.focus({ preventScroll: true });
 } });
 renderTools();
+renderSpecimen("before", false);
 if (desktop) {
   document.body.classList.add("desktop-app");
   if (desktop.platform === "darwin") document.body.classList.add("desktop-mac");

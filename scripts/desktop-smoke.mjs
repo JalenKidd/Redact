@@ -22,6 +22,14 @@ try {
   await page.getByRole("button", { name: "Open Redact", exact: false }).click();
   await page.waitForFunction(() => document.getElementById("welcome-screen").hidden);
   await page.getByRole("heading", { name: "Find your AI." }).waitFor();
+  assert.match(await page.locator("#specimen-content").innerText(), /PH-482716/);
+  await page.getByRole("button", { name: "After", exact: true }).click();
+  assert.match(await page.locator("#specimen-content").innerText(), /\[student ID\]/);
+  assert.equal(await page.getByRole("button", { name: "After", exact: true }).getAttribute("aria-pressed"), "true");
+  await page.getByRole("button", { name: "Try this example" }).click();
+  await page.waitForFunction(() => document.activeElement.id === "prompt");
+  assert.match(await page.locator("#prompt").inputValue(), /PH-482716/);
+  await page.getByRole("link", { name: "AI tools", exact: true }).click();
   assert.equal(await page.getByRole("button", { name: "DeepSeek", exact: true }).isVisible(), false);
   await page.getByRole("searchbox", { name: "Search AI tools" }).fill("deepseek");
   await page.getByRole("button", { name: "DeepSeek", exact: true }).waitFor();
@@ -31,8 +39,9 @@ try {
   await page.getByRole("searchbox", { name: "Search AI tools" }).fill("claude");
   assert.equal(await page.locator(".tool-tile:visible").count(), 1);
   await page.getByRole("button", { name: "Claude", exact: true }).click();
-  await application.evaluate(({ shell }) => {
+  await application.evaluate(({ clipboard, shell }) => {
     shell.openExternal = async url => { globalThis.redactTestOpenedUrl = url; };
+    clipboard.writeText = text => { globalThis.redactTestClipboard = text; };
   });
   await page.getByRole("link", { name: "Open Claude", exact: true }).click();
   assert.equal(await application.evaluate(() => globalThis.redactTestOpenedUrl), "https://claude.ai/");
@@ -54,6 +63,7 @@ try {
   assert.equal(await page.getByRole("link", { name: "Open Claude" }).getAttribute("href"), "https://claude.ai/");
   await page.getByRole("button", { name: "Copy suggestion" }).click();
   await page.getByText("Suggestion copied. Open Claude and paste it there.").waitFor();
+  assert.match(await application.evaluate(() => globalThis.redactTestClipboard), /\[name\].+\[address\]/);
   await page.getByText("See score and reasons", { exact: true }).click();
   assert.equal(await page.locator("#score-value").isVisible(), true);
   await page.getByText("Choose what to keep", { exact: true }).click();
