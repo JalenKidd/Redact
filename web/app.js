@@ -25,6 +25,7 @@ let historyVersion = 0;
 let lastReview = null;
 let liveHistory = { state: "idle", enabled: false, summaries: [], extensionConnected: false };
 let toastTimer;
+const expandedGroups = new Set();
 
 function node(tag, className, value) {
   const item = document.createElement(tag);
@@ -114,14 +115,32 @@ function setDraft(text, keepScore = false) {
   resetReview({ keepScore });
 }
 
+function listWords(items) {
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return items[0] + " and " + items[1];
+  return items.slice(0, -1).join(", ") + ", and " + items.at(-1);
+}
+
+function resultSummary(result, { pending = false, replaced = false } = {}) {
+  if (pending) return "Checking your draft on this device…";
+  if (replaced) return "Review your updated draft before sharing it.";
+  const labels = result.reasons.map(reason => {
+    const label = reason.label.toLowerCase();
+    return (/^[aeiou]/.test(label) ? "an " : "a ") + label;
+  });
+  if (!labels.length) return "Redact did not find private details on this device. Take one more look before you share.";
+  const destination = selectedTool && !demo ? " Copy the suggestion, then paste it into " + selectedTool.name + " yourself." :
+    " Copy the suggestion, then paste it into the AI tool you use.";
+  return "Redact found " + listWords(labels) + " on this device." + destination;
+}
+
 function showResult(text, result, { replaced = false, pending = false } = {}) {
   lastReview = { text, result, choices: {}, plan: null, pending };
   const hasFindings = result.matches.length > 0;
   const firstResult = $("check-result").hidden;
   $("check-result").hidden = false;
   $("result-heading").textContent = hasFindings ? "Private details found" : "No private details found";
-  $("result-summary").textContent = pending ? "Checking your draft…" : replaced ? "Review your updated draft before sharing it." :
-    hasFindings ? "Review the suggestion before you share your prompt." : "Take one more look before you share your prompt.";
+  $("result-summary").textContent = resultSummary(result, { pending, replaced });
   $("result-labels").replaceChildren(...result.reasons.slice(0, 3).map(reason => node("li", "reason-chip", reason.label)));
   if (result.reasons.length > 3) $("result-labels").append(node("li", "reason-chip", "+" + (result.reasons.length - 3) + " more"));
   $("save-check").hidden = !!demo || pending;
@@ -289,7 +308,7 @@ function startDemo() {
     overview: "Explore the activity and exposure categories from the fictional checks.",
     scan: "01 / Check this fictional draft before sharing it with AI.",
     history: "See how fictional prompts rank by exposure score.",
-    tools: "Choose ChatGPT to explore its privacy settings.",
+    tools: "Pick ChatGPT, then check a prompt or open the official site.",
     devices: "Leave rehearsal mode to connect a real device.",
   } };
   document.body.classList.add("rehearsing");
@@ -642,51 +661,51 @@ function openTool(tool) {
     modal.close();
     focusDraftOnScan = true;
     navigate("scan");
-  }), link("Open " + tool.name + " ↗", tool.url, "secondary-button"));
+  }), link("Open " + tool.name, tool.url, "secondary-button"));
   const policy = RedactPolicies.find(item => item.id === tool.id);
   const privacy = policy ? policyDetails(policy) : tool.privacy ? link("Official privacy information ↗", tool.privacy, "tool-privacy-link") : null;
   openDialog("AI TOOLS", tool.name, identity, actions, ...(privacy ? [privacy] : []));
 }
 
 function renderTools() {
-  const query = $("tool-search").value.trim().toLowerCase();
+  const query = $("tool-search").value.trim();
+  const preview = RedactCatalog.previewCount || 4;
   const container = $("tool-groups");
   container.replaceChildren();
   let total = 0;
   RedactCatalog.toolGroups.forEach((group, index) => {
-    const matches = group.tools.filter(tool => [tool.name, tool.description, group.name].some(text => text.toLowerCase().includes(query)));
+    const matches = group.tools.filter(tool => RedactCatalog.matchesQuery(tool, group.name, query));
     if (!matches.length) return;
     total += matches.length;
     const id = "tool-group-" + index;
+    const searching = Boolean(query);
+    const expanded = searching || expandedGroups.has(group.name);
+    const extras = !searching && matches.length > preview ? matches.slice(preview) : [];
     const section = node("section", "tool-group");
     section.setAttribute("aria-labelledby", id + "-title");
     const header = node("div", "tool-group-header");
     const title = node("h2", null, group.name);
     title.id = id + "-title";
     header.append(title);
-    const list = node("ul", "tool-grid");
+    const list = node("ul", "tool-row" + (expanded && extras.length ? " expanded" : ""));
     list.id = id;
-    const extra = [];
-    for (const tool of matches) {
+    for (const [offset, tool] of matches.entries()) {
       const tile = button("", "tool-tile", () => openTool(tool));
       tile.append(toolMark(tool), node("span", "tool-name", tool.name));
+      tile.setAttribute("aria-label", tool.name);
       const item = node("li");
       item.append(tile);
-      if (!query && list.children.length >= 4) {
-        item.hidden = true;
-        extra.push(item);
-      }
+      if (extras.length && offset >= preview && !expanded) item.hidden = true;
       list.append(item);
     }
-    if (extra.length) {
+    if (extras.length) {
       const label = "Show all " + matches.length;
-      const toggle = button(label, "text-button", () => {
-        const open = toggle.getAttribute("aria-expanded") === "true";
-        for (const item of extra) item.hidden = open;
-        toggle.setAttribute("aria-expanded", String(!open));
-        toggle.textContent = open ? label : "Show fewer";
+      const toggle = button(expanded ? "Show fewer" : label, "text-button", () => {
+        if (expandedGroups.has(group.name)) expandedGroups.delete(group.name);
+        else expandedGroups.add(group.name);
+        renderTools();
       });
-      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-expanded", String(expanded));
       toggle.setAttribute("aria-controls", id);
       header.append(toggle);
     }
@@ -862,7 +881,9 @@ prompt.addEventListener("input", () => {
 });
 $("check-prompt").addEventListener("click", () => void runCheck());
 $("copy-rewrite").addEventListener("click", () => {
-  if (lastReview?.text === prompt.value) void copy(lastReview.plan.text, "Rewrite copied.");
+  if (lastReview?.text !== prompt.value) return;
+  const destination = selectedTool && !demo ? " Open " + selectedTool.name + " and paste it there." : " Paste it into the AI tool you use.";
+  void copy(lastReview.plan.text, "Suggestion copied." + destination);
 });
 $("copy-draft").addEventListener("click", () => {
   if (lastReview?.text === prompt.value) void copy(prompt.value, "Draft copied.");

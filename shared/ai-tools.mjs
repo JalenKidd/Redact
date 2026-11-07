@@ -1,3 +1,5 @@
+export const previewCount = 4;
+
 export const toolGroups = [
   {
     name: "Chat & search",
@@ -42,3 +44,15 @@ export const toolGroups = [
     ],
   },
 ];
+
+export function matchesQuery(tool, groupName, query) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return [tool.name, tool.description, groupName].some(text => text.toLowerCase().includes(needle));
+}
+
+export function searchCatalog(query) {
+  return toolGroups.flatMap(group =>
+    group.tools.filter(tool => matchesQuery(tool, group.name, query)).map(tool => ({ ...tool, group: group.name }))
+  );
+}

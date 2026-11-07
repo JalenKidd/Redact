@@ -22,6 +22,10 @@ try {
   await page.getByRole("button", { name: "Open Redact", exact: false }).click();
   await page.waitForFunction(() => document.getElementById("welcome-screen").hidden);
   await page.getByRole("heading", { name: "Find your AI." }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "DeepSeek", exact: true }).isVisible(), false);
+  await page.getByRole("searchbox", { name: "Search AI tools" }).fill("deepseek");
+  await page.getByRole("button", { name: "DeepSeek", exact: true }).waitFor();
+  await page.getByRole("searchbox", { name: "Search AI tools" }).fill("");
   await page.getByRole("button", { name: "Show all 8" }).click();
   await page.getByRole("button", { name: "DeepSeek", exact: true }).waitFor();
   await page.getByRole("searchbox", { name: "Search AI tools" }).fill("claude");
@@ -30,7 +34,7 @@ try {
   await application.evaluate(({ shell }) => {
     shell.openExternal = async url => { globalThis.redactTestOpenedUrl = url; };
   });
-  await page.getByRole("link", { name: "Open Claude" }).click();
+  await page.getByRole("link", { name: "Open Claude", exact: true }).click();
   assert.equal(await application.evaluate(() => globalThis.redactTestOpenedUrl), "https://claude.ai/");
   assert.equal(application.windows().length, 1);
   await page.getByRole("button", { name: "Check a prompt", exact: true }).click();
@@ -46,7 +50,10 @@ try {
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "45");
   assert.equal(await page.locator("#score-value").isVisible(), false);
   assert.equal(await page.locator("#rewritten").isVisible(), true);
+  assert.match(await page.locator("#result-summary").innerText(), /a street address and a full name/i);
   assert.equal(await page.getByRole("link", { name: "Open Claude" }).getAttribute("href"), "https://claude.ai/");
+  await page.getByRole("button", { name: "Copy suggestion" }).click();
+  await page.getByText("Suggestion copied. Open Claude and paste it there.").waitFor();
   await page.getByText("See score and reasons", { exact: true }).click();
   assert.equal(await page.locator("#score-value").isVisible(), true);
   await page.getByText("Choose what to keep", { exact: true }).click();

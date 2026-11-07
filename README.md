@@ -12,7 +12,7 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 
 The welcome screen uses a two-beat logo and wordmark animation inspired by Pulse. Choose **Open Redact** to enter the workspace, or **Take a quick tour** to rehearse the demo. **Replay welcome** repeats the introduction. Page transitions, score counts, and redaction effects follow the system’s reduced-motion preference.
 
-Redact opens to **AI tools**, a directory of services grouped by use. Pick a tool and choose **Check a prompt** to use the local scanner. Review and copy the suggested draft, then open the provider and paste it there. **Check any prompt** also works with services outside the directory. To keep a summary, choose **Save check** and allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
+Redact opens to **AI tools**, a searchable directory grouped like a simple app list. Pick a tool and choose **Check a prompt** to use the local scanner, or **Open** the official site. After a check, copy the suggested draft and paste it yourself. Scores and privacy settings stay behind expandable controls. **Check any prompt** also works with services outside the directory. To keep a summary, choose **Save check** and allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
 
 ### Improved privacy checks and rewrite controls
 
