@@ -10,7 +10,11 @@ const profile = await mkdtemp(join(tmpdir(), "redact-electron-test-"));
 let application;
 try {
   const executablePath = process.argv[2];
-  const launch = () => _electron.launch({ executablePath, args: executablePath ? [] : [root], env: { ...process.env, REDACT_USER_DATA_DIR: profile } });
+  const launch = () => _electron.launch({ executablePath, args: [
+    ...(process.env.REDACT_HEADLESS === "1" && !executablePath ? ["-r", join(root, "scripts", "desktop-headless-bootstrap.cjs")] : []),
+    ...(executablePath ? [] : [root]),
+    ...(process.env.REDACT_HEADLESS === "1" ? ["--ozone-platform=headless", "--disable-gpu"] : []),
+  ], env: { ...process.env, REDACT_USER_DATA_DIR: profile } });
   application = await launch();
   let page = await application.firstWindow();
   await page.getByRole("button", { name: "Open Redact", exact: false }).click();
@@ -20,6 +24,38 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   assert.equal(await page.title(), "Redact — Think before you send.");
   assert.equal(await page.evaluate(() => typeof require), "undefined");
+  await page.locator("#prompt").fill("My name is Avery Example and I live at 21 Demo Lane.");
+  await page.getByRole("button", { name: "Check my prompt" }).click();
+  await page.waitForFunction(() => !document.getElementById("check-prompt").disabled);
+  await page.waitForFunction(() => document.getElementById("score-value").textContent === "45");
+  assert.match(await page.locator("#rewrite-comparison").innerText(), /Original 45\/100 → Revised 0\/100/);
+  await page.locator("#prompt").fill("I have type 1 diabetes. Email me at a@example.com. Write 3 questions for my doctor.");
+  await page.getByRole("button", { name: "Check my prompt" }).click();
+  await page.waitForFunction(() => !document.getElementById("check-prompt").disabled);
+  await page.getByLabel("Personal health detail 1", { exact: false }).selectOption("keep");
+  assert.match(await page.locator("#rewrite-comparison").innerText(), /Revised 25\/100/);
+  assert.match(await page.locator("#rewritten").innerText(), /type 1 diabetes.+\[email\]/);
+  await page.getByRole("button", { name: "Replace draft", exact: false }).click();
+  await page.waitForFunction(() => document.getElementById("score-value").textContent === "25");
+  assert.match(await page.locator("#prompt").inputValue(), /Write 3 questions for my doctor\./);
+  await page.locator("#prompt").fill("changed draft");
+  assert.equal(await page.locator("#score-value").innerText(), "—");
+  assert.equal(await page.locator("#rewrite-card").isVisible(), false);
+  await page.evaluate(() => {
+    window.savedModel = RedactModel;
+    window.RedactModel = { ...RedactModel, check: text => new Promise(resolve => {
+      window.finishStaleCheck = () => resolve(Redact.scan(text));
+    }) };
+  });
+  await page.locator("#prompt").fill("old@example.com");
+  await page.getByRole("button", { name: "Check my prompt" }).click();
+  await page.locator("#prompt").fill("A new draft without the old email");
+  await page.evaluate(() => { window.finishStaleCheck(); window.RedactModel = window.savedModel; });
+  assert.equal(await page.locator("#score-value").innerText(), "—");
+  await page.getByRole("button", { name: /Check contextual AI availability/ }).click();
+  await page.waitForFunction(() => !document.querySelector("#modal-content p")?.textContent.includes("Checking the local"));
+  assert.match(await page.locator("#modal-content").innerText(), /Ollama|local model/);
+  await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByRole("button", { name: "Try a fictional example" }).click();
   await page.getByRole("button", { name: "Check my prompt" }).click();
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "50");
@@ -56,7 +92,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".history-score b").length === 4);
   assert.deepEqual(await page.locator(".history-score b").allTextContents(), ["75", "50", "20", "0"]);
   assert.equal(await page.evaluate(async () => (await window.redactDesktop.getHistory()).summaries.length), 0);
-  console.log("Electron passed welcome, rewriting, local history, restart persistence, clearing, and the guided tour.");
+  console.log("Electron passed welcome, name/address detection, keep/replace choices, animated scores, stale-draft reset, local AI setup, local history, restart persistence, clearing, and the guided tour.");
 } finally {
   await application?.close();
   await rm(profile, { recursive: true, force: true, maxRetries: 3 });

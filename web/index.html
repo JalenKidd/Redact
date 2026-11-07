@@ -11,6 +11,7 @@
   <script defer src="motion.js"></script>
   <script defer src="config.js"></script>
   <script defer src="scanner.js"></script>
+  <script defer src="context.js"></script>
   <script defer src="model.js"></script>
   <script defer src="policies.js"></script>
   <script defer src="app.js"></script>
@@ -87,6 +88,8 @@
         <section class="rewrite-card card" id="rewrite-card" aria-labelledby="rewrite-heading" hidden>
           <div class="card-heading"><h2 id="rewrite-heading"><span class="rewrite-spark" aria-hidden="true">✦</span> Same request. More privacy.</h2><span class="tiny-label" id="rewrite-status">SUGGESTED DRAFT</span></div>
           <div id="highlighted" class="highlighted" aria-label="Original draft with flagged details"></div>
+          <fieldset class="rewrite-choices"><legend>Choose what the task needs</legend><p>Keep necessary context, or replace identifying details. Keeping a detail leaves its exposure in the revised score.</p><div id="rewrite-choices"></div></fieldset>
+          <div id="rewrite-comparison" class="rewrite-comparison" role="status"></div>
           <div class="rewrite-output"><div class="tiny-label">YOUR REWRITE</div><p id="rewritten"></p></div>
           <div class="rewrite-bottom"><p>Check the placeholders before sharing. Add only the context you need.</p><div><button class="secondary-button" id="copy-rewrite">Copy rewrite</button><button class="primary-button" id="replace-draft">Replace draft <span aria-hidden="true">↗</span></button></div></div>
         </section>
