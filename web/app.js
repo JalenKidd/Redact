@@ -128,8 +128,7 @@ function resultSummary(result, { pending = false, replaced = false } = {}) {
   if (pending) return "Checking your draft on this device…";
   if (replaced) return "Your draft is updated. Review it before you share.";
   if (!result.reasons.length) return "Take one more look before sharing your draft.";
-  return selectedTool && !demo ? "Review the suggested draft before pasting it into " + selectedTool.name + "." :
-    "Review the suggested draft before sharing it.";
+  return "Compare the original and suggested drafts before you share.";
 }
 
 function paintDraft(container, text, matches, renderMatch) {
@@ -150,10 +149,35 @@ function detailMark(match, value, style) {
   return mark;
 }
 
+function renderVisibility(version = $("visibility-body").dataset.version, animate = false) {
+  if (!lastReview) return;
+  const tool = demo ? null : selectedTool;
+  const recipient = tool?.name || "the AI";
+  const hasSuggestion = lastReview.result.matches.length > 0;
+  const suggested = hasSuggestion && version === "suggested";
+  const count = suggested ? lastReview.plan.matches.length : lastReview.result.matches.length;
+  $("visibility-heading").textContent = "What " + recipient + " would see";
+  $("visibility-note").textContent = "If you send this version, " + recipient + " receives the full text. Red marks private details Redact detected.";
+  const policy = $("visibility-policy");
+  policy.hidden = !tool?.privacy;
+  if (tool?.privacy) policy.href = tool.privacy;
+  $("visibility-tabs").hidden = !hasSuggestion;
+  $("visibility-body").dataset.version = suggested ? "suggested" : "original";
+  $("visibility-body").classList.toggle("has-private-details", count > 0);
+  $("highlighted").hidden = suggested;
+  $("rewrite-output").hidden = !suggested;
+  for (const button of $("visibility-tabs").querySelectorAll("button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.visibility === $("visibility-body").dataset.version));
+  }
+  $("visibility-status").textContent = count ? count + (count === 1 ? " private detail flagged" : " private details flagged") : "No private details detected";
+  if (animate) motion.reveal(suggested ? $("rewrite-output") : $("highlighted"));
+}
+
 function showResult(text, result, { replaced = false, pending = false } = {}) {
   lastReview = { text, result, choices: {}, plan: null, pending, replaced };
   const hasFindings = result.matches.length > 0;
   const firstResult = $("check-result").hidden;
+  if (firstResult) $("visibility-body").dataset.version = "original";
   $("check-result").hidden = false;
   $("draft-step").removeAttribute("aria-current");
   $("review-step").setAttribute("aria-current", "step");
@@ -184,11 +208,8 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   motion.findings();
 
   $("rewrite-card").hidden = !hasFindings;
-  $("highlighted").replaceChildren();
-  if (hasFindings) {
-    paintDraft($("highlighted"), text, result.matches, match =>
-      detailMark(match, text.slice(match.start, match.end), "redact-mask"));
-  }
+  paintDraft($("highlighted"), text, result.matches, match =>
+    detailMark(match, text.slice(match.start, match.end), "redact-mask"));
   $("rewrite-choices").replaceChildren();
   const counts = {};
   for (const match of result.matches) {
@@ -228,14 +249,27 @@ function updateRewrite() {
   const { text, result, choices } = lastReview;
   const plan = Redact.rewrite(text, result, choices);
   lastReview.plan = plan;
-  paintDraft($("rewritten"), text, result.matches, (match, index) => {
+  const spans = [...plan.matches];
+  let shift = 0;
+  let remaining = 0;
+  for (const [index, match] of result.matches.entries()) {
     const edit = plan.edits[index];
-    return edit.action === "replace" ? detailMark(match, edit.after, "replacement-token") : edit.after;
-  });
+    const start = match.start + shift;
+    const end = start + edit.after.length;
+    shift += edit.after.length - (match.end - match.start);
+    while (plan.matches[remaining]?.end <= start) remaining++;
+    if (edit.action === "replace" && !(plan.matches[remaining]?.start < end)) {
+      spans.push({ ...match, start, end, placeholder: true });
+    }
+  }
+  spans.sort((a, b) => a.start - b.start);
+  paintDraft($("rewritten"), plan.text, spans, match =>
+    detailMark(match, plan.text.slice(match.start, match.end), match.placeholder ? "replacement-token" : "redact-mask"));
   const kept = plan.edits.filter(edit => edit.action === "keep").length;
   $("rewrite-comparison").textContent = `Original ${result.score}/100 → Revised ${plan.score}/100. ` +
     (kept ? `${kept} detail${kept === 1 ? "" : "s"} kept by you. ` : "") +
     "The revised score includes the details you chose to keep. A score of zero means the check found no signals.";
+  renderVisibility();
 }
 
 async function runCheck() {
@@ -260,7 +294,7 @@ async function runCheck() {
     }
   }
   if (demo) {
-    updateDemo(rules.matches.length ? "02 / Review the flagged details, then choose Replace draft." :
+    updateDemo(rules.matches.length ? "02 / See what the AI would receive in red, then choose Replace draft." :
       "03 / Your practice draft is ready. Simulate a send to see its exposure summary.");
     $("demo-send").hidden = !!rules.matches.length;
     $("check-prompt").disabled = false;
@@ -289,10 +323,11 @@ async function replaceDraft() {
     });
     effect.hidden = false;
     effect.scrollTop = prompt.scrollTop;
-    const visibleOriginals = $("rewrite-options").open
+    const visibleOriginals = !$("highlighted").hidden
       ? [...$("highlighted").querySelectorAll("mark")].filter(mark => replacing.has(mark.dataset.occurrence))
       : [];
-    await motion.redact([...effect.querySelectorAll("mark"), ...visibleOriginals], [...$("rewritten").querySelectorAll("mark")]);
+    const visibleTokens = $("rewrite-output").hidden ? [] : [...$("rewritten").querySelectorAll(".replacement-token")];
+    await motion.redact([...effect.querySelectorAll("mark"), ...visibleOriginals], visibleTokens);
   }
   if (review !== lastReview || review.text !== prompt.value) return;
   $("replace-draft").disabled = false;
@@ -673,7 +708,7 @@ function renderDestination() {
     destination.href = tool.url;
     destination.textContent = "Open " + tool.name + " ↗";
   }
-  if (lastReview) $("result-summary").textContent = resultSummary(lastReview.result, lastReview);
+  renderVisibility();
   renderResultActions();
 }
 
@@ -715,16 +750,19 @@ function openTool(tool, category, source) {
   exampleHead.append(node("h3", null, "Try an example"), button("Load example", "text-button", () => begin(true)));
   example.append(exampleHead, node("p", null, tool.example));
 
+  const visibility = node("section", "provider-visibility");
+  visibility.append(node("h3", null, "What " + tool.name + " would see"),
+    node("p", null, "If you send a draft, " + tool.name + " receives the full text. Check it first to see private details highlighted in red."));
   const footer = node("div", "provider-footer");
   const host = new URL(tool.url).hostname.replace(/^www\./, "");
   footer.append(node("span", "provider-host", host), node("span", null, "Prompt checks stay on this device"));
   const policy = RedactPolicies.find(item => item.id === tool.id);
   const privacy = policy ? policyDetails(policy) : tool.privacy ? link("Official privacy information ↗", tool.privacy, "tool-privacy-link") : null;
-  profile.append(hero, actions, example);
+  profile.append(hero, actions, visibility, example);
   if (privacy) profile.append(privacy);
   profile.append(footer);
   presentDialog("AI PROFILE", title, [profile], "provider");
-  motion.profile(modal, origin, avatar, [identity, actions, example, footer]);
+  motion.profile(modal, origin, avatar, [identity, actions, visibility, example, footer]);
 }
 
 const specimenScan = Redact.scan(Redact.sample);
@@ -986,9 +1024,15 @@ prompt.addEventListener("input", () => {
 $("check-prompt").addEventListener("click", () => void runCheck());
 $("copy-rewrite").addEventListener("click", () => {
   if (lastReview?.text !== prompt.value) return;
+  renderVisibility("suggested");
   const destination = selectedTool && !demo ? " Open " + selectedTool.name + " and paste it there." : " Paste it into the AI tool you use.";
   void copy(lastReview.plan.text, "Suggestion copied." + destination);
 });
+for (const button of $("visibility-tabs").querySelectorAll("button")) {
+  button.addEventListener("click", () => {
+    if (button.getAttribute("aria-pressed") !== "true") renderVisibility(button.dataset.visibility, true);
+  });
+}
 $("copy-draft").addEventListener("click", () => {
   if (lastReview?.text === prompt.value) void copy(prompt.value, "Draft copied.");
 });

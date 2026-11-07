@@ -13,6 +13,8 @@
   --good-bg: #e3eee5;
   --warn: #893926;
   --warn-bg: #f9e2d7;
+  --exposed-ink: #a3211f;
+  --exposed-bg: #ffe4e1;
   --night: #22211e;
   --night-line: #514b43;
   --night-text: #fffaf0;
@@ -39,6 +41,8 @@ body[data-appearance="midnight"] {
   --good-bg: #293e33;
   --warn: #ffd3c0;
   --warn-bg: #4e3228;
+  --exposed-ink: #ffb2ac;
+  --exposed-bg: #562b2a;
 }
 * { box-sizing: border-box; }
 html { background: var(--canvas); }

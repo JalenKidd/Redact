@@ -62,6 +62,10 @@ try {
   await page.waitForFunction(() => !document.getElementById("check-prompt").disabled);
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "45");
   assert.equal(await page.locator("#score-value").isVisible(), false);
+  await page.getByRole("heading", { name: "What Claude would see", exact: true }).waitFor();
+  assert.deepEqual(await page.locator("#highlighted mark").allTextContents(), ["Avery Example", "21 Demo Lane"]);
+  assert.equal(await page.locator("#rewritten").isVisible(), false);
+  await page.getByRole("button", { name: "Suggested draft", exact: true }).click();
   assert.equal(await page.locator("#rewritten").isVisible(), true);
   assert.deepEqual(await page.locator("#result-labels li").allTextContents(), ["Street address", "Full name"]);
   assert.equal(await page.getByRole("link", { name: "Open Claude" }).getAttribute("href"), "https://claude.ai/");
@@ -78,7 +82,10 @@ try {
   await page.getByText("Choose what to keep", { exact: true }).click();
   await page.getByLabel("Personal health detail 1", { exact: false }).selectOption("keep");
   assert.match(await page.locator("#rewrite-comparison").innerText(), /Revised 25\/100/);
+  await page.getByRole("button", { name: "Suggested draft", exact: true }).click();
   assert.match(await page.locator("#rewritten").innerText(), /type 1 diabetes.+\[email\]/);
+  assert.match(await page.locator("#rewritten .redact-mask").innerText(), /type 1 diabetes/);
+  assert.equal(await page.locator("#visibility-status").innerText(), "1 private detail flagged");
   await page.getByRole("button", { name: "Replace draft", exact: false }).click();
   assert.deepEqual(await page.locator("#draft-effect mark").allTextContents(), ["a@example.com"]);
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "25");

@@ -102,13 +102,27 @@
             <p id="result-summary"></p>
             <ul class="result-labels" id="result-labels" aria-label="Types of details found"></ul>
           </div>
-          <section class="rewrite-card" id="rewrite-card" aria-labelledby="rewrite-heading" hidden>
-            <div class="rewrite-output"><h3 id="rewrite-heading">Suggested draft</h3><p id="rewritten"></p></div>
+          <section class="visibility-preview" id="visibility-preview" aria-labelledby="visibility-heading">
+            <div class="visibility-head">
+              <h3 id="visibility-heading">What the AI would see</h3>
+              <a class="text-button" id="visibility-policy" target="_blank" rel="noopener noreferrer" hidden>Provider privacy ↗</a>
+            </div>
+            <p class="visibility-note" id="visibility-note"></p>
+            <div class="visibility-tabs" id="visibility-tabs" role="group" aria-label="Draft version" hidden>
+              <button type="button" data-visibility="original" aria-pressed="true" aria-controls="highlighted">Original draft</button>
+              <button type="button" data-visibility="suggested" aria-pressed="false" aria-controls="rewrite-output">Suggested draft</button>
+            </div>
+            <div class="visibility-body" id="visibility-body" data-version="original">
+              <div class="visibility-status" id="visibility-status" role="status"></div>
+              <div id="highlighted" class="highlighted" aria-label="Original draft with flagged details"></div>
+              <div class="rewrite-output" id="rewrite-output" hidden><p id="rewritten" aria-label="Suggested draft"></p></div>
+            </div>
+          </section>
+          <section class="rewrite-card" id="rewrite-card" aria-label="Rewrite options" hidden>
             <div class="rewrite-bottom"><div><button class="primary-button" id="copy-rewrite">Copy suggestion</button><button class="text-button" id="replace-draft">Replace draft</button></div></div>
             <details class="disclosure result-disclosure" id="rewrite-options">
               <summary>Choose what to keep</summary>
               <div class="disclosure-content">
-                <div id="highlighted" class="highlighted" aria-label="Original draft with flagged details"></div>
                 <fieldset class="rewrite-choices"><legend>Details in your draft</legend><p>Keep anything AI needs to answer your question.</p><div id="rewrite-choices"></div></fieldset>
                 <div id="rewrite-comparison" class="rewrite-comparison" role="status"></div>
               </div>
@@ -194,7 +208,7 @@
           </div>
           <div class="specimen" id="specimen" data-mode="before" aria-labelledby="specimen-heading">
             <div class="specimen-header">
-              <h2 id="specimen-heading">Prompt preview</h2>
+              <h2 id="specimen-heading">What AI would see</h2>
               <div class="specimen-switch" role="group" aria-label="Preview state">
                 <button type="button" data-specimen="before" aria-pressed="true">Before</button>
                 <button type="button" data-specimen="after" aria-pressed="false">After</button>

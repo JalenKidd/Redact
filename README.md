@@ -12,7 +12,7 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 
 Choose **Open Redact** to enter the workspace or **Take a quick tour** to rehearse the demo. On the home screen, switch between **Before** and **After** to see how Redact handles a fictional prompt, then choose **Try this example** to check it yourself. **Replay welcome** repeats the introduction. Page transitions, the scan sweep, and redaction effects follow the system’s reduced-motion preference.
 
-Redact opens to **AI tools**, a searchable directory with bundled [provider pictures](web/ai-logos/NOTICE.txt). Pick a tool to see its profile, load a sample, check a draft, or open the official site. After a check, copy the suggested draft or choose **Replace draft** to see the selected details replaced in place. Scores and privacy settings stay behind expandable controls. **Check any prompt** also works with services outside the directory. To keep a summary, choose **Save check** and allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
+Redact opens to **AI tools**, a searchable directory with bundled [provider pictures](web/ai-logos/NOTICE.txt). Pick a tool to see its profile, load a sample, check a draft, or open the official site. **What the AI would see** previews the full text you would send and marks private details in red. Compare the original and suggested drafts, then copy the suggestion or replace the original. Every tool has a provider privacy link. **Check any prompt** works with tools outside the directory. To keep a summary, choose **Save check** and allow saving the first time.
 
 ### Improved privacy checks and rewrite controls
 

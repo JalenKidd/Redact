@@ -24,3 +24,9 @@ test("search finds a tool even when it would be outside the preview row", () => 
   assert.equal(searchCatalog("notebook")[0].group, "Writing & study");
   assert.equal(searchCatalog("no-such-tool").length, 0);
 });
+
+test("each provider has a secure privacy destination", () => {
+  for (const tool of toolGroups.flatMap(group => group.tools)) {
+    assert.equal(new URL(tool.privacy).protocol, "https:", tool.name);
+  }
+});
