@@ -3,7 +3,6 @@
   const weekday = new Intl.DateTimeFormat(undefined, { weekday: "short" });
   const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
   const examples = {
-    school: Redact.sample,
     job: "Write a short cover letter for a library assistant role. My email is alex@example.com and my phone number is (202) 555-0135. Mention my volunteer work.",
     support: "Help me write a support request about an account issue. My account email is casey@example.com. The test API key is sk-abcdefghijklmnopqrstuvwxyz123456789.",
   };
@@ -32,24 +31,23 @@
     return item;
   }
 
-  function renderMetrics() {
+  function renderOverview() {
     const summaries = visibleSummaries();
-    const state = syncClient.status();
-    const count = state.connected ? state.devices.length || 1 : 1;
-    const keys = JSON.stringify([summaries, lastReview?.result.score, count, !!demo, state.connected, state.phase === "offline"]);
+    const keys = JSON.stringify([summaries, !!demo]);
     if (keys === metricKey) return;
     metricKey = keys;
+    $("overview-empty").hidden = summaries.length > 0;
+    $("overview-recent").hidden = $("overview-trends").hidden = !summaries.length;
+    if (!summaries.length) {
+      $("overview-trends").open = false;
+      return;
+    }
     const highs = summaries.filter(summary => summary.score >= 50).length;
     const average = summaries.length ? Math.round(summaries.reduce((sum, item) => sum + item.score, 0) / summaries.length) : "—";
     $("overview-metrics").replaceChildren(
       metric("Saved checks", summaries.length, demo ? "Fictional summaries" : "In this workspace", "▤", "violet"),
       metric("High exposure", highs, "Scores of 50 or more", "◈", "rose"),
       metric("Average score", average, "Across your saved checks", "◔", "mint"),
-    );
-    $("scanner-metrics").replaceChildren(
-      metric("Last check", lastReview?.result.score ?? "—", lastReview ? Redact.rating(lastReview.result.score) : "Ready to scan", "⌑", "violet"),
-      metric("Saved checks", summaries.length, demo ? "Rehearsal data" : "Exposure history", "◷", "rose"),
-      metric("Devices", count, state.connected ? (state.phase === "offline" ? "Offline" : "Sync enabled") : "This device only", "▣", "mint"),
     );
     renderActivity(summaries);
   }
@@ -100,7 +98,6 @@
     }
     $("recent-checks").replaceChildren();
     const recent = [...summaries].sort((a, b) => b.timestamp - a.timestamp).slice(0, 4);
-    if (!recent.length) $("recent-checks").append(node("p", "panel-empty", "Your saved checks will appear here."));
     for (const summary of recent) {
       const row = node("div", "recent-row");
       const label = node("div");
@@ -111,22 +108,21 @@
   }
 
   function renderDevices(state = syncClient.status()) {
-    const identity = deviceIdentity();
     const isOnline = state.phase === "synced" || state.phase === "syncing";
     const last = state.lastSynced ? "Last synced at " + time.format(new Date(state.lastSynced)) : "";
     const phases = { local: "This device only", synced: "Sync is up to date", syncing: "Syncing", offline: "Offline", disconnected: "Device disconnected" };
     $("device-phase").textContent = phases[state.phase] || "This device only";
     $("device-status").dataset.phase = state.phase;
+    $("device-status").hidden = !state.connected && state.phase !== "disconnected";
+    $("device-heading").textContent = state.connected ? "Device sync is on" : "Connect your devices";
     $("device-detail").textContent = demo ? "Leave rehearsal mode to link your own devices." :
-      state.error || (state.connected ? last || "Connecting to your encrypted workspace…" : "Link your laptop and phone with a one-time pairing code.");
-    $("toolbar-sync").textContent = state.connected ? (state.phase === "offline" ? "Sync offline" : "Device sync") : "This device";
-    $("overview-sync-status").textContent = state.connected ? (state.devices.length || 1) + " linked · " + (last || "Connecting") : "Link your devices to carry your saved checks with you.";
+      state.error || (state.connected ? last || "Connecting to your devices…" : "Set up sync here, then scan a QR code with your other device.");
     $("create-sync").hidden = $("join-sync").hidden = state.connected;
     $("invite-device").hidden = $("sync-now").hidden = $("clear-sync-history").hidden = !state.connected;
+    $("linked-devices").hidden = !state.connected;
     for (const id of ["create-sync", "join-sync", "invite-device", "sync-now", "clear-sync-history"]) $(id).disabled = busy || !!demo;
     document.querySelector(".device-network").classList.toggle("connected", state.connected && isOnline);
-    const devices = state.devices.length ? state.devices : [{ id: state.deviceId || "local", name: state.name || identity.name, kind: identity.kind, lastSeen: 0 }];
-    $("device-count").textContent = devices.length;
+    const devices = state.devices;
     const signature = JSON.stringify([devices.map(device => [device.id, device.name, device.kind, Date.now() - device.lastSeen < 45_000]), state.deviceId, state.connected, isOnline, !!demo]);
     if (signature === deviceKey) return;
     deviceKey = signature;
@@ -166,7 +162,7 @@
 
   function render() {
     const state = syncClient.status();
-    renderMetrics();
+    renderOverview();
     renderDevices(state);
     renderPreferences(state);
   }
@@ -257,8 +253,10 @@
       const copyLink = button("Copy link", "secondary-button", () => void copy(invitation.url, "Pairing link copied."));
       const actions = node("div", "dialog-actions");
       actions.append(copyCode, copyLink);
-      panel.append(qr, count, code, actions);
-      openDialog("REDACT / DEVICES", "Pair another device", node("p", null, "Scan with your phone camera, or copy the code and enter it in the other Redact app."), panel);
+      const fallback = node("details", "pairing-fallback");
+      fallback.append(node("summary", null, "Pair without a camera"), code, actions);
+      panel.append(qr, count, fallback);
+      openDialog("REDACT / DEVICES", "Scan to connect", node("p", null, "Open your phone’s camera and point it at this code."), panel);
       const tick = () => {
         const remaining = Math.max(0, Math.ceil((invitation.expires - Date.now()) / 1000));
         count.textContent = remaining ? "One-time code · expires in " + Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0") : "Code expired · generate a new code";
@@ -315,14 +313,15 @@
   }
   for (const control of document.querySelectorAll("[data-example]")) {
     control.addEventListener("click", () => {
-      setDraft(examples[control.dataset.example], "FICTIONAL EXAMPLE");
+      setDraft(examples[control.dataset.example]);
+      control.closest("details").open = false;
       $("demo-send").hidden = true;
       if (demo) updateDemo("01 / Check this fictional draft before sharing it with AI.");
       prompt.focus();
     });
   }
   modal.addEventListener("close", () => clearInterval(invitationTimer));
-  for (const event of ["redact:route", "redact:review", "redact:history"]) document.addEventListener(event, render);
+  for (const event of ["redact:route", "redact:history"]) document.addEventListener(event, render);
   syncClient.subscribe(() => {
     render();
     if (activeRoute === "history" && !demo) renderHistory();

@@ -11,11 +11,8 @@ const syncClient = RedactSync.createSyncClient({
   baseURL: location.hostname === "127.0.0.1" ? location.origin : RedactConfig.syncUrl || RedactConfig.hostedUrl,
 });
 
-const routeNames = { overview: "Overview", scan: "Prompt scanner", history: "Exposure history", policies: "Privacy guide", devices: "Devices" };
-const placeholder = {
-  rating: "Ready when you are",
-  description: "Check your draft to see what it could reveal.",
-};
+const routeNames = { scan: "Check", history: "History", overview: "Overview", policies: "Privacy guide", devices: "Devices" };
+const scrollBehavior = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
 const tone = score => score >= 50 ? "high" : score >= 25 ? "moderate" : score > 0 ? "low" : "clear";
 
 let activeRoute = "scan";
@@ -95,31 +92,36 @@ function resetReview({ keepScore = false } = {}) {
   ++checkVersion;
   $("check-prompt").disabled = false;
   if (!keepScore) motion.resetScore();
-  $("score-rating").textContent = placeholder.rating;
-  $("score-rating").className = "score-badge";
-  $("score-description").textContent = placeholder.description;
-  $("finding-count").textContent = "AWAITING CHECK";
-  $("findings").replaceChildren(emptyFinding("⌕", "Every point comes with a reason. You decide what to change."));
+  $("check-result").hidden = true;
   $("rewrite-card").hidden = true;
+  $("rewrite-options").open = $("score-details").open = false;
   $("highlighted").replaceChildren();
   $("rewritten").textContent = "";
   $("save-check").hidden = true;
-  document.dispatchEvent(new Event("redact:review"));
 }
 
 function updateCount() {
+  $("clear-draft").hidden = !prompt.value;
+  $("char-limit").hidden = prompt.value.length < 19_000;
   $("char-count").textContent = number.format(prompt.value.length) + " / 20,000 characters";
 }
 
-function setDraft(text, label, keepScore = false) {
+function setDraft(text, keepScore = false) {
   prompt.value = text;
-  $("draft-label").textContent = label;
   updateCount();
   resetReview({ keepScore });
 }
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
   lastReview = { text, result, choices: {}, plan: null };
+  const hasFindings = result.matches.length > 0;
+  const firstResult = $("check-result").hidden;
+  $("check-result").hidden = false;
+  $("result-heading").textContent = hasFindings ? "Private details found" : "No private details found";
+  $("result-summary").textContent = pending ? "Checking your draft…" : replaced ? "Review your updated draft before sharing it." :
+    hasFindings ? "Review the suggestion before you share your prompt." : "Take one more look before you share your prompt.";
+  $("result-labels").replaceChildren(...result.reasons.slice(0, 3).map(reason => node("li", "reason-chip", reason.label)));
+  if (result.reasons.length > 3) $("result-labels").append(node("li", "reason-chip", "+" + (result.reasons.length - 3) + " more"));
   $("save-check").hidden = !!demo || pending;
   $("save-check").disabled = false;
   $("save-check").textContent = "Save check";
@@ -131,7 +133,6 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   $("score-description").textContent = replaced ? "Draft replaced. Review it before sharing." :
     pending ? "Rules check ready. Checking context on this device…" :
       result.contextual ? "Checked with rules and on-device AI." : (result.coverage?.reason || "Rules only. Contextual coverage is limited.");
-  $("finding-count").textContent = result.reasons.length + (result.reasons.length === 1 ? " CATEGORY" : " CATEGORIES");
   $("findings").replaceChildren();
   if (!result.reasons.length) $("findings").append(emptyFinding("✓", "Review your draft for anything you still want to keep private."));
   for (const reason of result.reasons) {
@@ -143,8 +144,6 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   }
   motion.findings();
 
-  const hasFindings = result.matches.length > 0;
-  const revealRewrite = $("rewrite-card").hidden && hasFindings;
   $("rewrite-card").hidden = !hasFindings;
   $("highlighted").replaceChildren();
   $("rewritten").textContent = hasFindings ? result.rewritten : "";
@@ -189,9 +188,8 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   }
   $("copy-rewrite").disabled = $("replace-draft").disabled = pending;
   updateRewrite();
-  if (revealRewrite) motion.reveal($("rewrite-card"));
-  document.dispatchEvent(new Event("redact:review"));
-  if (!pending) $("announcement").textContent = result.score + " out of 100. " + Redact.rating(result.score) + ".";
+  if (firstResult) motion.reveal($("check-result"));
+  if (!pending) $("announcement").textContent = $("result-heading").textContent + ". " + $("result-summary").textContent;
 }
 
 function updateRewrite() {
@@ -217,22 +215,22 @@ async function runCheck() {
   const version = ++checkVersion;
   motion.scan();
   const rules = Redact.scan(text);
-  showResult(text, rules);
+  showResult(text, rules, { pending: !demo });
+  if (activeRoute === "scan") {
+    $("result-heading").focus({ preventScroll: true });
+    $("check-result").scrollIntoView({ behavior: scrollBehavior(), block: "start" });
+  }
   if (demo) {
     updateDemo(rules.matches.length ? "02 / Review the flagged details, then choose Replace draft." :
       "03 / Your practice draft is ready. Simulate a send to see its exposure summary.");
     $("demo-send").hidden = !!rules.matches.length;
   } else if (version === checkVersion) {
     $("check-prompt").disabled = true;
-    showResult(text, rules, { pending: true });
     const result = await RedactModel.check(text);
     if (version === checkVersion) {
       showResult(text, result);
       $("check-prompt").disabled = false;
     }
-  }
-  if (version === checkVersion && lastReview?.result.matches.length) {
-    $("rewrite-card").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
@@ -241,7 +239,9 @@ async function replaceDraft() {
   const review = lastReview;
   const plan = review.plan;
   const replacing = new Set(plan.edits.filter(edit => edit.action === "replace").map(edit => edit.id));
-  const marks = [...$("highlighted").querySelectorAll("mark")].filter(mark => replacing.has(mark.dataset.occurrence));
+  const marks = $("rewrite-options").open
+    ? [...$("highlighted").querySelectorAll("mark")].filter(mark => replacing.has(mark.dataset.occurrence))
+    : [];
   const choices = $("rewrite-choices").querySelectorAll("select");
   $("replace-draft").disabled = true;
   choices.forEach(select => { select.disabled = true; });
@@ -255,17 +255,17 @@ async function replaceDraft() {
   const contextual = plan.matches.filter(match => match.source === "context")
     .map(match => ({ kind: match.kind, text: text.slice(match.start, match.end) }));
   const result = { ...Redact.scan(text, contextual), contextual: prior.contextual, coverage: prior.coverage };
-  setDraft(text, demo ? "FICTIONAL REWRITE" : "REVISED DRAFT", true);
+  setDraft(text, true);
   showResult(text, result, { replaced: true });
   if (demo) {
     updateDemo("03 / Exposure dropped from " + before + " to " + result.score + ". Simulate a send to see the summary.");
     $("demo-send").hidden = false;
     motion.reveal($("demo-send"));
     $("simulate-send").focus({ preventScroll: true });
-    $("demo-send").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("demo-send").scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
   } else if (activeRoute === "scan") {
     prompt.focus({ preventScroll: true });
-    $("draft-heading").scrollIntoView({ behavior: "smooth", block: "center" });
+    $("draft-heading").scrollIntoView({ behavior: scrollBehavior(), block: "center" });
   }
   notify("Selected details replaced. Review the draft before sharing.");
 }
@@ -292,8 +292,8 @@ function startDemo() {
   document.body.classList.add("rehearsing");
   $("demo-banner").hidden = false;
   $("demo-send").hidden = true;
-  $("start-demo").firstChild.textContent = "Restart demo ";
-  setDraft(Redact.sample, "FICTIONAL EXAMPLE");
+  $("start-demo").firstChild.textContent = "Restart tour ";
+  setDraft(Redact.sample);
   navigate("scan");
 }
 
@@ -302,8 +302,8 @@ function endDemo() {
   document.body.classList.remove("rehearsing");
   $("demo-banner").hidden = true;
   $("demo-send").hidden = true;
-  $("start-demo").firstChild.textContent = "Run the demo ";
-  setDraft(draftBeforeDemo, "READY TO CHECK");
+  $("start-demo").firstChild.textContent = "Take a tour ";
+  setDraft(draftBeforeDemo);
   draftBeforeDemo = "";
   if (activeRoute === "history") void refreshHistory();
   document.dispatchEvent(new Event("redact:history"));
@@ -390,98 +390,62 @@ async function refreshHistory() {
   document.dispatchEvent(new Event("redact:history"));
 }
 
-function stat(label, value, description) {
-  const item = node("div", "stat");
-  item.append(node("span", "stat-label", label), node("strong", "stat-value", value), node("span", "stat-description", description));
-  return item;
-}
-
 function renderHistory() {
   $("history-import").hidden = Boolean(demo);
+  $("history-options").hidden = Boolean(demo);
   const summaries = visibleSummaries();
   const source = $("history-source");
   const content = $("history-content");
-  source.replaceChildren();
   content.replaceChildren();
 
-  if (demo) {
-    source.append(node("strong", null, "Rehearsal history"), node("span", null, "Fictional summaries · kept separate from your browser history"));
-  } else if (syncClient.status().connected) {
-    const state = syncClient.status();
-    source.append(node("strong", null, "Synced history"), node("span", null, state.phase === "offline" ? "Offline · showing saved summaries" : "Encrypted summaries from your linked devices"));
-  } else if (desktop && liveHistory.state === "connected") {
-    source.append(node("strong", null, "Desktop history"), node("span", null, "Manual checks on this device · saving " + (liveHistory.enabled ? "enabled" : "off")));
-  } else if (desktop) {
-    source.append(node("strong", null, liveHistory.state === "loading" ? "Loading desktop history…" : "Desktop history is unavailable. Try refreshing."));
+  const sync = syncClient.status();
+  if (sync.connected) {
+    source.textContent = sync.phase === "offline" ? "Offline. Showing your last synced checks." : "Showing saved checks from your linked devices.";
   } else if (liveHistory.state === "connected") {
-    source.append(node("strong", null, liveHistory.extensionConnected ? "Browser and Chrome extension" : "Browser history"), node("span", null, "Manual check saving " + (liveHistory.enabled ? "enabled" : "off")));
+    const location = liveHistory.extensionConnected ? "This browser and your Chrome extension." : "This device.";
+    source.textContent = location + (liveHistory.enabled ? " Saving is on." : " Saving is off.");
   } else if (liveHistory.state === "loading") {
-    source.append(node("strong", null, "Looking for the Redact extension…"));
+    source.textContent = "Loading your saved checks…";
   } else {
-    source.append(node("span", null, "Connect Redact in Chrome to see your local exposure history."), button("Get the extension ↗", "text-button", showInstall));
+    source.textContent = "Couldn’t load saved checks. Try refreshing.";
   }
-  const highest = summaries.length ? Math.max(...summaries.map(summary => summary.score)) : "—";
-  $("history-stats").replaceChildren(
-    stat(desktop && !demo ? "CHECKS SAVED" : "PROMPTS RECORDED", summaries.length, "Summaries in this view"),
-    stat("HIGH EXPOSURE", summaries.filter(summary => summary.score >= 50).length, "Score of 50 or above"),
-    stat("PEAK SCORE", highest, "Highest recorded exposure"),
-  );
 
+  $("history-filters").hidden = !summaries.length;
   const filter = $("history-filter").value;
   const sort = $("history-sort").value;
   const visible = summaries.filter(summary => filter === "all" || (filter === "high") === (summary.score >= 50));
   visible.sort((first, second) => (sort === "score" ? second.score - first.score : 0) || second.timestamp - first.timestamp);
   if (!visible.length) {
-    const empty = node("div", "history-empty");
-    const filtered = summaries.length > 0;
-    empty.append(node("span", "empty-symbol", "◷"), node("h3", null, filtered ? "No matching summaries" : "Your history is empty."));
-    const text = filtered ? "Choose a different exposure filter to see more summaries." :
-      "Enable saving, check a draft, then choose Save check to build your history.";
-    empty.append(node("p", null, text));
-    if (!filtered && !demo && liveHistory.state === "connected") {
-      empty.append(button("History settings", "secondary-button", () => void showDesktopSettings()));
-    } else if (!filtered && liveHistory.state !== "connected" && liveHistory.state !== "loading") {
-      empty.append(button("Run the demo ↗", "secondary-button", startDemo));
+    const empty = node("div", "simple-empty");
+    if (summaries.length) {
+      empty.append(node("h2", null, "No matches"), node("p", null, "Change the filter to see more checks."));
+    } else if (liveHistory.state === "loading") {
+      empty.append(node("p", null, "Loading your saved checks…"));
+    } else {
+      const check = node("a", "primary-button", "Check a prompt");
+      check.href = "#scan";
+      empty.append(node("h2", null, "No saved checks yet"), node("p", null, "After you check a prompt, choose Save check to find it here later."), check);
     }
     content.append(empty);
     return;
   }
 
-  const table = node("table", "history-table");
-  const header = node("tr");
-  for (const label of [desktop && !demo ? "SOURCE" : "PROVIDER", "EXPOSURE", "REASONS", desktop && !demo ? "CHECKED" : "SUBMITTED"]) {
-    const cell = node("th", null, label);
-    cell.scope = "col";
-    header.append(cell);
-  }
-  const head = node("thead");
-  head.append(header);
-  const body = node("tbody");
+  const list = node("ul", "saved-checks");
   for (const summary of visible) {
-    const row = node("tr");
-    const provider = node("td");
-    const icon = node("span", "provider-mark", summary.provider === "Manual check" ? "⌕" : "✳");
-    icon.setAttribute("aria-hidden", "true");
-    provider.append(icon, document.createTextNode(summary.provider));
-    const scoreCell = node("td");
-    const score = node("div", "history-score");
-    score.append(node("b", null, summary.score), node("span", "score-badge " + tone(summary.score), Redact.rating(summary.score)));
-    scoreCell.append(score);
-    const reasons = node("td");
-    for (const kind of summary.kinds) {
-      if (Object.hasOwn(Redact.categories, kind)) reasons.append(node("span", "reason-chip", Redact.categories[kind].label));
-    }
-    if (!reasons.children.length) reasons.append(node("span", "reason-chip", "No signals found"));
-    const timeCell = node("td");
+    const row = node("li");
+    const meta = node("div", "saved-check-meta");
     const date = new Date(summary.timestamp);
     const time = node("time", null, dateFormat.format(date));
     time.dateTime = date.toISOString();
-    timeCell.append(time);
-    row.append(provider, scoreCell, reasons, timeCell);
-    body.append(row);
+    meta.append(node("strong", null, summary.provider), time);
+    const score = node("span", "history-score score-badge " + tone(summary.score));
+    score.append(node("b", null, summary.score), document.createTextNode(" / 100"));
+    score.setAttribute("aria-label", "Exposure score " + summary.score + " out of 100");
+    const labels = summary.kinds.filter(kind => Object.hasOwn(Redact.categories, kind)).map(kind => Redact.categories[kind].label);
+    row.append(meta, node("p", "saved-check-reasons", labels.join(", ") || "No private details found"), score);
+    list.append(row);
   }
-  table.append(head, body);
-  content.append(table);
+  content.append(list);
 }
 
 function showInstall() {
@@ -548,27 +512,37 @@ async function showDesktopSettings() {
     node("p", null, "Save check stores the date, score, and category labels for a manual check. Your draft stays in the app window."), actions);
 }
 
-async function saveDesktopCheck() {
-  if (demo || !lastReview || lastReview.text !== prompt.value) return;
-  const review = lastReview;
+async function saveDesktopCheck(review = lastReview, permissionButton) {
   const save = $("save-check");
+  if (demo || !review || review !== lastReview || review.text !== prompt.value || save.disabled) return;
   save.disabled = true;
   try {
-    const state = await historyStore.getHistory();
-    if (!state.enabled) {
-      await showDesktopSettings();
+    if (permissionButton) {
+      permissionButton.disabled = true;
+      await historyStore.setHistoryEnabled(true);
+    } else if (!(await historyStore.getHistory()).enabled) {
+      if (review !== lastReview) return;
+      const approve = button("Allow and save", "primary-button", () => void saveDesktopCheck(review, approve));
+      const actions = node("div", "dialog-actions");
+      actions.append(approve, button("Cancel", "secondary-button", () => modal.close()));
+      const syncNote = syncClient.status().connected ? " Your linked devices can see the summary." : "";
+      openDialog("REDACT / HISTORY", "Save this check?",
+        node("p", null, "Redact saves the date, score, and types of details it found. Your draft stays on this device." + syncNote), actions);
       return;
     }
+    if (review !== lastReview) return;
     await historyStore.saveSummary(review.result.reasons.map(reason => reason.kind));
     await refreshHistory();
+    if (permissionButton && modal.open && modal.contains(permissionButton)) modal.close();
     if (review === lastReview) {
       save.textContent = "Saved ✓";
       save.disabled = true;
     }
-    notify("Manual check summary saved on this device.");
+    notify("Check saved to History.");
   } catch {
     notify("Could not save this check summary.");
   } finally {
+    if (permissionButton) permissionButton.disabled = false;
     if (review === lastReview && save.textContent !== "Saved ✓") save.disabled = false;
   }
 }
@@ -608,14 +582,14 @@ function showPolicyAction(policy, action) {
 
 function renderPolicies() {
   for (const policy of RedactPolicies) {
-    const card = node("article", "card policy-card");
-    const provider = node("div", "provider-title");
+    const card = node("details", "card policy-card disclosure");
+    card.name = "privacy-provider";
+    const provider = node("summary", "provider-title");
     const avatar = node("span", "provider-avatar " + policy.id, policy.icon);
     avatar.setAttribute("aria-hidden", "true");
-    const name = node("div");
-    name.append(node("div", "tiny-label", policy.company), node("h2", null, policy.name));
-    provider.append(avatar, name);
-    card.append(provider);
+    provider.append(avatar, node("span", "provider-name", policy.name));
+    const details = node("div", "policy-details");
+    card.append(provider, details);
     for (const [question, answer] of [
       ["What can it collect?", policy.collects],
       ["Can it use my chats for training?", policy.training],
@@ -623,7 +597,7 @@ function renderPolicies() {
     ]) {
       const section = node("section", "policy-question");
       section.append(node("h3", null, question), node("p", null, answer));
-      card.append(section);
+      details.append(section);
     }
     const controls = node("div", "policy-buttons");
     controls.append(button("Turn off training ↗", "primary-button", () => showPolicyAction(policy, "optOut")),
@@ -631,7 +605,7 @@ function renderPolicies() {
     const sources = node("div", "policy-links");
     for (const source of policy.sources) sources.append(link(source.label + " ↗", source.url));
     const checked = node("div", "tiny-label source-date", "LAST CHECKED " + policy.checked.toUpperCase());
-    card.append(controls, sources, checked);
+    details.append(controls, sources, checked);
     $("policy-cards").append(card);
   }
 }
@@ -739,7 +713,6 @@ function renderRoute(route, animate = true) {
     if (key === route) tab.setAttribute("aria-current", "page");
     else tab.removeAttribute("aria-current");
   }
-  $("breadcrumb").textContent = routeNames[route];
   motion.navigation(document.querySelector('[data-route="' + route + '"]'), previous !== route);
   if (animate && previous !== route) {
     const order = Object.keys(routeNames);
@@ -780,20 +753,19 @@ $("start-demo").addEventListener("click", startDemo);
 $("end-demo").addEventListener("click", endDemo);
 $("simulate-send").addEventListener("click", simulateSend);
 $("load-example").addEventListener("click", () => {
-  setDraft(Redact.sample, "FICTIONAL EXAMPLE");
+  setDraft(Redact.sample);
   $("demo-send").hidden = true;
   if (demo) updateDemo("01 / Check this fictional draft before sharing it with AI.");
   prompt.focus();
 });
 $("clear-draft").addEventListener("click", () => {
-  setDraft("", "READY TO CHECK");
+  setDraft("");
   $("demo-send").hidden = true;
   prompt.focus();
 });
 prompt.addEventListener("input", () => {
   updateCount();
   resetReview();
-  $("draft-label").textContent = demo ? "REHEARSAL DRAFT" : "READY TO CHECK";
   $("demo-send").hidden = true;
 });
 $("check-prompt").addEventListener("click", () => void runCheck());
@@ -824,7 +796,7 @@ window.addEventListener("focus", () => {
 
 RedactHistoryUI.init({ openDialog, openDraft: text => {
   if (demo) endDemo();
-  setDraft(text, "IMPORTED USER PROMPT");
+  setDraft(text);
   navigate("scan");
   prompt.focus({ preventScroll: true });
 } });
@@ -832,11 +804,7 @@ renderPolicies();
 if (desktop) {
   document.body.classList.add("desktop-app");
   if (desktop.platform === "darwin") document.body.classList.add("desktop-mac");
-  document.querySelector(".local-note").lastChild.textContent = " This check runs on your device. Your draft stays in this window.";
-  $("history-description").textContent = "Manual check summaries are stored on this device. Choose what to save after each check.";
-  $("history-page").querySelector(".page-heading p").textContent = "Review the drafts you chose to check. Start with the highest exposure.";
 }
-$("desktop-history-settings").hidden = false;
 $("workspace").hidden = false;
 if (location.hash === "#demo") startDemo();
 else {

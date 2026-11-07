@@ -34,8 +34,8 @@
         <svg class="symbol-orbit" viewBox="0 0 200 200"><rect class="orbit-track" x="13" y="13" width="174" height="174" rx="52"/><rect class="orbit-runner" x="13" y="13" width="174" height="174" rx="52" pathLength="100"/></svg>
       </div>
       <h1 id="welcome-heading">Redact<span>.</span></h1>
-      <h2>A little privacy goes a long way.</h2>
-      <p>Keep the context that helps.<br>Take out the details that are yours.</p>
+      <h2>Check a prompt before you share it.</h2>
+      <p>Redact looks for private details and suggests what to change.</p>
       <div class="welcome-actions"><button id="enter-workspace" class="primary-button welcome-primary">Open Redact <span aria-hidden="true">→</span></button><button id="welcome-demo" class="welcome-demo">Take a quick tour <span aria-hidden="true">↗</span></button></div>
       <div class="welcome-local"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4.5" y="8" width="11" height="9" rx="2"/><path d="M7 8V5a3 3 0 0 1 6 0v3"/></svg> Checked on your device. Always your choice.</div>
     </div>
@@ -45,25 +45,17 @@
   <a class="skip" href="#main">Skip to content</a>
   <aside class="sidebar">
     <a class="brand" href="#scan" aria-label="Redact home"><img src="brand.svg" alt="" width="36" height="36"><span>redact<span class="brand-period">.</span></span></a>
-    <div class="workspace-label">Workspace</div>
     <nav aria-label="Main navigation"><span class="nav-indicator" aria-hidden="true"></span>
+      <a href="#scan" data-route="scan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3m6 0h3a2 2 0 0 1 2 2v3m0 6v3a2 2 0 0 1-2 2h-3m-6 0H6a2 2 0 0 1-2-2v-3M4 12h16"/></svg><span>Check</span></a>
+      <a href="#history" data-route="history"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg><span>History</span></a>
       <a href="#overview" data-route="overview"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="7" rx="1.5"/><rect x="13.5" y="4" width="7" height="7" rx="1.5"/><rect x="3.5" y="14" width="7" height="7" rx="1.5"/><rect x="13.5" y="14" width="7" height="7" rx="1.5"/></svg><span>Overview</span></a>
-      <a href="#scan" data-route="scan"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3m6 0h3a2 2 0 0 1 2 2v3m0 6v3a2 2 0 0 1-2 2h-3m-6 0H6a2 2 0 0 1-2-2v-3M4 12h16"/></svg><span>Scanner</span></a>
-      <a href="#history" data-route="history" aria-label="Exposure history"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg><span class="nav-label">Exposure history</span><span class="nav-short" aria-hidden="true">History</span></a>
       <a href="#policies" data-route="policies" aria-label="Privacy guide"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 4.5 6v5.5c0 5 7.5 9 7.5 9s7.5-4 7.5-9V6z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span class="nav-label">Privacy guide</span><span class="nav-short" aria-hidden="true">Guide</span></a>
       <a href="#devices" data-route="devices"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.8" y="4.5" width="13.5" height="10" rx="2"/><path d="M2 18h8"/><rect x="13.5" y="9.5" width="7.7" height="11" rx="1.8"/><path d="M16.7 17.7h1.4"/></svg><span>Devices</span></a>
     </nav>
-    <div class="sidebar-note"><div class="local-emblem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg></div><div><strong>On your device</strong><small>You control what leaves.</small></div></div>
-    <button class="extension-link" id="install"><span aria-hidden="true">⊞</span> Get the Chrome extension <span aria-hidden="true">↗</span></button>
-    <button class="sidebar-footer" id="replay-welcome">Replay welcome <span aria-hidden="true">↻</span></button>
+    <button class="sidebar-tour text-button" id="start-demo">Take a tour <span aria-hidden="true">↗</span></button>
   </aside>
 
   <div class="shell">
-    <header class="topbar">
-      <div class="breadcrumbs"><strong id="breadcrumb">Prompt scanner</strong><span class="app-version">REDACT 0.1</span></div>
-      <div class="topbar-actions"><a class="local-pill" href="#devices"><span class="status-dot"></span> <span id="toolbar-sync">This device</span></a><button class="text-button" id="start-demo">Run the demo <span aria-hidden="true">▶</span></button></div>
-    </header>
-
     <main id="main" tabindex="-1">
       <div id="demo-banner" class="demo-banner" hidden>
         <div><span class="demo-tag">REHEARSAL MODE</span><span id="demo-instruction">Start with a fictional draft. Check it, replace it, then simulate a send.</span></div>
@@ -71,62 +63,89 @@
       </div>
 
       <section id="overview-page" class="page" aria-labelledby="overview-heading" hidden>
-        <div class="page-heading workspace-heading"><div><div class="eyebrow">YOUR PRIVACY WORKSPACE</div><h1 id="overview-heading">Privacy overview<span class="purple">.</span></h1><p>See what your saved checks reveal over time.</p></div><a class="primary-button" href="#scan">Check a prompt <span aria-hidden="true">↗</span></a></div>
-        <div id="overview-metrics" class="workspace-metrics"></div>
-        <div class="overview-grid">
-          <section class="activity-panel card" aria-labelledby="activity-heading"><div class="panel-header"><div><span class="tiny-label">LAST 7 DAYS</span><h2 id="activity-heading">Check activity</h2></div><span class="legend"><i></i> Checks <i></i> High exposure</span></div><div id="activity-chart" class="activity-chart"></div></section>
-          <section class="category-panel card" aria-labelledby="category-heading"><div class="panel-header"><div><span class="tiny-label">DETECTED SIGNALS</span><h2 id="category-heading">Top categories</h2></div></div><div id="top-categories" class="category-list"></div></section>
-          <section class="recent-panel card" aria-labelledby="recent-heading"><div class="panel-header"><div><span class="tiny-label">HISTORY</span><h2 id="recent-heading">Recent checks</h2></div><a class="text-button" href="#history">View history ↗</a></div><div id="recent-checks" class="recent-list"></div></section>
-          <section class="overview-devices card" aria-labelledby="overview-devices-heading"><div class="panel-header"><div><span class="tiny-label">YOUR DEVICES</span><h2 id="overview-devices-heading">Device sync</h2></div></div><p id="overview-sync-status"></p><div class="device-mini-graphic" aria-hidden="true"><span>▣</span><i></i><span>▯</span></div><a class="text-button" href="#devices">Manage devices ↗</a></section>
-        </div>
+        <div class="page-heading"><div><h1 id="overview-heading">Overview<span class="purple">.</span></h1><p>See what Redact finds in the checks you save.</p></div></div>
+        <section class="card simple-empty" id="overview-empty"><h2>Start with one prompt</h2><p>Check a draft and save the result to see your activity here.</p><a class="primary-button" href="#scan">Check a prompt <span aria-hidden="true">↗</span></a></section>
+        <section class="recent-panel card" id="overview-recent" aria-labelledby="recent-heading" hidden><div class="panel-header"><h2 id="recent-heading">Recent checks</h2><a class="text-button" href="#history">See history ↗</a></div><div id="recent-checks" class="recent-list"></div></section>
+        <details class="card disclosure" id="overview-trends" hidden>
+          <summary>View trends</summary>
+          <div class="disclosure-content">
+            <div id="overview-metrics" class="workspace-metrics"></div>
+            <div class="overview-grid">
+              <section class="activity-panel card" aria-labelledby="activity-heading"><div class="panel-header"><div><span class="tiny-label">LAST 7 DAYS</span><h2 id="activity-heading">Check activity</h2></div><span class="legend"><i></i> Checks <i></i> High exposure</span></div><div id="activity-chart" class="activity-chart"></div></section>
+              <section class="category-panel card" aria-labelledby="category-heading"><div class="panel-header"><h2 id="category-heading">Most common details</h2></div><div id="top-categories" class="category-list"></div></section>
+            </div>
+          </div>
+        </details>
       </section>
 
       <section id="scan-page" class="page">
-        <div class="page-heading scan-heading"><div><div class="eyebrow"><span class="status-dot"></span> A MOMENT BEFORE YOU SEND</div><h1>Before you send<span class="purple">.</span></h1><p>Check the details in your draft before you share it.</p></div><div class="scanner-emblem" aria-hidden="true"><img src="brand.svg" width="76" height="76" alt=""><span class="emblem-orbit"></span><span class="emblem-dot"></span></div></div>
-        <div class="workspace-metrics scanner-metrics" id="scanner-metrics"></div>
-        <div class="scanner-toolbar"><span class="input-label">PROMPT CHECK</span><button class="text-button sample-button" id="load-example"><span aria-hidden="true">✧</span> Try a fictional example</button></div>
-
-        <div class="scan-grid">
+        <div class="page-heading scan-heading"><div><h1>Check a prompt<span class="purple">.</span></h1><p>See if your draft shares more than you intended.</p></div><div class="scanner-emblem" aria-hidden="true"><img src="brand.svg" width="76" height="76" alt=""><span class="emblem-orbit"></span><span class="emblem-dot"></span></div></div>
           <section class="editor-card card" aria-labelledby="draft-heading">
-            <div class="card-heading"><h2 id="draft-heading">Your draft</h2><span class="tiny-label" id="draft-label">READY TO CHECK</span></div>
+            <div class="card-heading"><h2 id="draft-heading">Your draft</h2><button class="text-button sample-button" id="load-example">Try an example</button></div>
             <label class="sr-only" for="prompt">Prompt to check</label>
-            <div class="editor-field"><div class="scan-light" aria-hidden="true"></div><textarea id="prompt" maxlength="20000" spellcheck="false" autocomplete="off" autocorrect="off" placeholder="What are you about to ask AI?&#10;&#10;Paste your prompt here. Redact will look for sensitive details before you share it."></textarea></div>
-            <div class="editor-meta"><span id="char-count">0 / 20,000 characters</span><span id="engine-status"><span class="status-dot"></span> Rules ready</span></div>
-            <div class="editor-actions"><button class="text-button" id="clear-draft">Clear draft</button><div class="check-actions"><button class="secondary-button" id="save-check" hidden>Save check</button><button class="primary-button" id="check-prompt">Check my prompt <span aria-hidden="true">↗</span></button></div></div>
-            <p class="local-note"><span aria-hidden="true">▱</span> This check runs on your device. Your draft stays in this tab.</p>
+            <div class="editor-field"><div class="scan-light" aria-hidden="true"></div><textarea id="prompt" maxlength="20000" spellcheck="false" autocomplete="off" autocorrect="off" placeholder="Type or paste what you plan to ask AI."></textarea></div>
+            <div class="editor-meta" id="char-limit" hidden><span id="char-count"></span></div>
+            <div class="editor-actions"><p class="local-note">Your draft stays on this device.</p><div class="check-actions"><button class="text-button" id="clear-draft" hidden>Clear</button><button class="primary-button" id="check-prompt">Check my prompt <span aria-hidden="true">↗</span></button></div></div>
           </section>
 
-          <section class="score-card card" aria-labelledby="score-heading">
-            <div class="card-heading"><h2 id="score-heading">What your prompt reveals</h2><button class="info-button" id="scoring-info" aria-label="How the exposure score works">i</button></div>
+        <section class="result-card card" id="check-result" aria-labelledby="result-heading" hidden>
+          <div class="result-intro">
+            <h2 id="result-heading" tabindex="-1"></h2>
+            <p id="result-summary"></p>
+            <ul class="result-labels" id="result-labels" aria-label="Types of details found"></ul>
+          </div>
+          <section class="rewrite-card" id="rewrite-card" aria-labelledby="rewrite-heading" hidden>
+            <div class="rewrite-output"><h3 id="rewrite-heading">Suggested draft</h3><p id="rewritten"></p></div>
+            <div class="rewrite-bottom"><div><button class="primary-button" id="replace-draft">Replace draft <span aria-hidden="true">↗</span></button><button class="text-button" id="copy-rewrite">Copy suggestion</button></div></div>
+            <details class="disclosure result-disclosure" id="rewrite-options">
+              <summary>Choose what to keep</summary>
+              <div class="disclosure-content">
+                <div id="highlighted" class="highlighted" aria-label="Original draft with flagged details"></div>
+                <fieldset class="rewrite-choices"><legend>Details in your draft</legend><p>Keep anything AI needs to answer your question.</p><div id="rewrite-choices"></div></fieldset>
+                <div id="rewrite-comparison" class="rewrite-comparison" role="status"></div>
+              </div>
+            </details>
+          </section>
+          <details class="score-card disclosure result-disclosure" id="score-details">
+            <summary>See score and reasons</summary>
+            <div class="disclosure-content">
             <div class="score-summary"><div class="score-ring" id="score-ring"><svg class="score-track" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54" pathLength="100" class="score-track-base"/><circle cx="60" cy="60" r="54" pathLength="100" class="score-track-value" id="score-track-value"/></svg><div><strong id="score-value">—</strong><span>OUT OF 100</span></div></div><div class="score-caption"><span class="score-badge" id="score-rating">Ready when you are</span><p id="score-description">Check your draft to see<br>what it could reveal.</p></div></div>
-            <div class="finding-header"><span class="tiny-label">WHAT WE FOUND</span><span class="tiny-label" id="finding-count">AWAITING CHECK</span></div>
-            <div id="findings" class="findings"><div class="empty-finding"><span aria-hidden="true">⌕</span><p>Every point comes with a reason.<br>You decide what to change.</p></div></div>
-            <p class="score-footnote">A heuristic score of detected signals. Detection coverage varies by format and language.</p>
-          </section>
-        </div>
-
-        <section class="rewrite-card card" id="rewrite-card" aria-labelledby="rewrite-heading" hidden>
-          <div class="card-heading"><h2 id="rewrite-heading"><span class="rewrite-spark" aria-hidden="true">✦</span> Same request. More privacy.</h2><span class="tiny-label" id="rewrite-status">SUGGESTED DRAFT</span></div>
-          <div id="highlighted" class="highlighted" aria-label="Original draft with flagged details"></div>
-          <fieldset class="rewrite-choices"><legend>Choose what the task needs</legend><p>Keep necessary context, or replace identifying details. Keeping a detail leaves its exposure in the revised score.</p><div id="rewrite-choices"></div></fieldset>
-          <div id="rewrite-comparison" class="rewrite-comparison" role="status"></div>
-          <div class="rewrite-output"><div class="tiny-label">YOUR REWRITE</div><p id="rewritten"></p></div>
-          <div class="rewrite-bottom"><p>Check the placeholders before sharing. Add only the context you need.</p><div><button class="secondary-button" id="copy-rewrite">Copy rewrite</button><button class="primary-button" id="replace-draft">Replace draft <span aria-hidden="true">↗</span></button></div></div>
+            <div id="findings" class="findings"></div>
+            <button class="text-button score-help" id="scoring-info">How the score works</button>
+            </div>
+          </details>
+          <button class="text-button save-result" id="save-check" hidden>Save check</button>
         </section>
 
         <div id="demo-send" class="demo-send" hidden><div><strong>Your draft is ready for a practice send.</strong><p>Save a fictional exposure summary to the demo history.</p></div><button class="primary-button" id="simulate-send">Simulate send →</button></div>
 
-        <section class="quick-starts" aria-labelledby="examples-heading"><div class="panel-header"><div><span class="tiny-label">FICTIONAL PROMPTS</span><h2 id="examples-heading">Try a scenario</h2></div></div><div class="scenario-grid"><button data-example="school"><span class="scenario-icon">✎</span><span><strong>School email</strong><small>Phone and student ID</small></span><span aria-hidden="true">↗</span></button><button data-example="job"><span class="scenario-icon">⌑</span><span><strong>Job application</strong><small>Personal email and phone</small></span><span aria-hidden="true">↗</span></button><button data-example="support"><span class="scenario-icon">◈</span><span><strong>Support request</strong><small>Credential and account email</small></span><span aria-hidden="true">↗</span></button></div></section>
-        <div class="bottom-note"><span><span class="status-dot"></span> STAYS ON YOUR DEVICE</span><p>Make space for a little privacy.</p><button class="text-button" id="enable-ai">Check contextual AI availability ↗</button></div>
+        <details class="scanner-options disclosure">
+          <summary>More examples and settings</summary>
+          <div class="disclosure-content">
+            <div class="scenario-grid"><button data-example="job"><span class="scenario-icon">⌑</span><span><strong>Job application</strong><small>Personal email and phone</small></span><span aria-hidden="true">↗</span></button><button data-example="support"><span class="scenario-icon">◈</span><span><strong>Support request</strong><small>Test key and account email</small></span><span aria-hidden="true">↗</span></button></div>
+            <div class="setting-links"><button class="text-button" id="enable-ai">Check contextual AI availability</button><span id="engine-status" role="status">Basic check ready</span></div>
+          </div>
+        </details>
       </section>
 
       <section id="history-page" class="page" hidden>
-        <div class="page-heading"><div><div class="eyebrow">A CLEARER VIEW OF WHAT YOU SHARE</div><h1>Your exposure, explained<span class="purple">.</span></h1><p>Find patterns in the prompts you send. Start with the highest exposure.</p></div></div>
-        <section class="card import-workspace" id="history-import" aria-labelledby="import-heading">
-          <div class="card-heading"><h2 id="import-heading">Import past conversations</h2><span class="tiny-label">MEMORY ONLY</span></div>
+        <div class="page-heading"><div><h1>History<span class="purple">.</span></h1><p>Find the checks you’ve saved.</p></div></div>
+        <section class="card history-card" aria-label="Saved checks">
+          <div id="history-content"></div>
+        </section>
+        <details class="card disclosure" id="history-options">
+          <summary>History settings and filters</summary>
+          <div class="disclosure-content">
+            <p id="history-source" class="history-source"></p>
+            <div class="history-tools" id="history-filters" hidden><label for="history-filter">Show</label><select id="history-filter"><option value="all">All checks</option><option value="high">Higher scores (50+)</option><option value="low">Scores under 50</option></select><label for="history-sort">Sort by</label><select id="history-sort"><option value="recent">Most recent</option><option value="score">Highest score</option></select></div>
+            <div class="setting-links"><button class="text-button" id="desktop-history-settings">History settings</button><button class="text-button" id="refresh-history">Refresh history</button></div>
+          </div>
+        </details>
+        <details class="card disclosure import-workspace" id="history-import">
+          <summary>Import past ChatGPT conversations</summary>
           <div class="import-body">
-            <p>Choose extracted ChatGPT conversation JSON files, including numbered files. Preview the conversations, then choose which to analyze. Imported text stays in memory and clears when this window closes or reloads.</p>
-            <p class="import-help">Rules-only bulk analysis · up to 20 files / 16 MiB · no uploads, saving, or device sync. Attachments and unsupported content are marked as coverage gaps.</p>
+            <p>Choose the conversation files from your ChatGPT export. Redact checks them here and clears the results when you close or reload this window.</p>
+            <details class="disclosure"><summary>File limits and privacy</summary><p class="import-help">Select up to 20 JSON files (16 MB total). Text is checked on this device. Attachments are skipped. Imported chats don’t sync.</p></details>
             <div class="import-actions"><label class="secondary-button import-picker" for="history-files">Choose conversation JSON<input id="history-files" type="file" accept=".json,application/json" multiple></label><a class="text-button" href="https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data" target="_blank" rel="noopener noreferrer">Get a ChatGPT export ↗</a><button class="text-button" id="import-cancel" hidden>Cancel import</button><button class="text-button" id="import-clear" hidden>Clear imported history</button></div>
             <p id="import-status" role="status" aria-live="polite">No export loaded. Your saved summaries below are separate.</p>
             <progress id="import-progress" aria-label="History analysis progress" hidden></progress>
@@ -149,35 +168,30 @@
               <div class="import-pagination"><button class="secondary-button" id="import-previous">Previous prompts</button><span id="import-page" role="status"></span><button class="secondary-button" id="import-next">Next prompts</button></div>
             </div>
           </div>
-        </section>
-        <div class="history-source" id="history-source"></div>
-        <div class="history-stats" id="history-stats"></div>
-        <section class="card history-card">
-          <div class="card-heading"><h2>Prompt summaries</h2><div class="history-tools"><label for="history-filter" class="sr-only">Filter by exposure</label><select id="history-filter"><option value="all">All exposure levels</option><option value="high">High exposure · 50+</option><option value="low">Under 50</option></select><label for="history-sort" class="sr-only">Sort summaries</label><select id="history-sort"><option value="score">Highest exposure</option><option value="recent">Most recent</option></select></div></div>
-          <div id="history-content"></div>
-        </section>
-        <div class="history-actions"><p id="history-description">History contains category labels and scores. Manage consent and clear browser history in the extension.</p><div class="check-actions"><button class="text-button" id="desktop-history-settings" hidden>History settings</button><button class="text-button" id="refresh-history">Refresh history ↻</button></div></div>
+        </details>
       </section>
 
       <section id="policies-page" class="page" hidden>
-        <div class="page-heading"><div><div class="eyebrow">READ THE SHORT VERSION. OPEN THE SOURCE.</div><h1>Know where your words go<span class="purple">.</span></h1><p>Plain-language policy summaries and a path to your privacy controls.</p></div></div>
-        <div class="policy-notice"><span aria-hidden="true">i</span><p>These cards cover personal consumer services. Your plan, region, and workspace can change the available controls.</p><span class="tiny-label">CHECKED NOV 06, 2026</span></div>
+        <div class="page-heading"><div><h1>Privacy guide<span class="purple">.</span></h1><p>Choose the AI service you use.</p></div></div>
         <div class="policy-grid" id="policy-cards"></div>
-        <div class="policy-explainer card"><div><span class="tiny-label">TWO DIFFERENT ACTIONS</span><h2>Choose the control you need.</h2></div><div><h3>Turn off training</h3><p>Change how eligible future chats can be used to improve models.</p></div><div><h3>Delete data</h3><p>Review chat, account, and personal-data deletion options with the provider.</p></div></div>
       </section>
       <section id="devices-page" class="page" aria-labelledby="devices-heading" hidden>
-        <div class="page-heading workspace-heading"><div><div class="eyebrow">ONE WORKSPACE, YOUR DEVICES</div><h1 id="devices-heading">Devices<span class="purple">.</span></h1><p>Carry your saved checks and appearance preferences with you.</p></div><button class="secondary-button" id="sync-now" hidden>Sync now <span aria-hidden="true">↻</span></button></div>
+        <div class="page-heading"><div><h1 id="devices-heading">Devices<span class="purple">.</span></h1><p>See your saved checks on your phone and computer.</p></div></div>
         <div class="device-hero card">
-          <div class="device-copy"><span class="device-status" id="device-status" role="status"><span class="status-dot"></span><span id="device-phase">This device only</span></span><h2>Your workspace<br> goes with you.</h2><p id="device-detail">Link your laptop and phone with a one-time pairing code.</p><div class="device-actions"><button class="primary-button" id="create-sync">Enable device sync <span aria-hidden="true">↗</span></button><button class="secondary-button" id="join-sync">Enter pairing code</button><button class="primary-button" id="invite-device" hidden>Add a device <span aria-hidden="true">＋</span></button></div></div>
-          <div class="device-network" aria-hidden="true"><div class="network-halo"></div><svg class="network-path" viewBox="0 0 420 220"><path d="M28 109h76l32-44h41m63 44h74l34 40h43"/><path class="network-signal" d="M28 109h76l32-44h41m63 44h74l34 40h43" pathLength="100"/><circle cx="29" cy="109" r="4"/><circle cx="391" cy="149" r="4"/></svg><div class="network-device"><img src="brand.svg" width="74" height="74" alt=""></div><div class="network-phone">▯</div><span class="network-caption">ENCRYPTED SYNC</span></div>
+          <div class="device-copy"><h2 id="device-heading">Connect your devices</h2><p id="device-detail">Set up sync here, then scan a QR code with your other device.</p><span class="device-status" id="device-status" role="status" hidden><span class="status-dot"></span><span id="device-phase">This device only</span></span><div class="device-actions"><button class="primary-button" id="create-sync">Enable device sync <span aria-hidden="true">↗</span></button><button class="text-button" id="join-sync">I have a pairing code</button><button class="primary-button" id="invite-device" hidden>Add a device <span aria-hidden="true">＋</span></button></div></div>
+          <div class="device-network" aria-hidden="true"><div class="network-halo"></div><svg class="network-path" viewBox="0 0 420 220"><path d="M28 109h76l32-44h41m63 44h74l34 40h43"/><path class="network-signal" d="M28 109h76l32-44h41m63 44h74l34 40h43" pathLength="100"/><circle cx="29" cy="109" r="4"/><circle cx="391" cy="149" r="4"/></svg><div class="network-device"><img src="brand.svg" width="74" height="74" alt=""></div><div class="network-phone">▯</div></div>
         </div>
-        <div class="device-grid">
-          <section class="card device-list-card" aria-labelledby="linked-heading"><div class="panel-header"><div><span class="tiny-label">YOUR WORKSPACE</span><h2 id="linked-heading">Your devices</h2></div><span class="device-count" id="device-count">1</span></div><div id="device-list" class="device-list"></div></section>
-          <section class="card preference-card" aria-labelledby="preferences-heading"><div class="panel-header"><div><span class="tiny-label">MAKE IT YOURS</span><h2 id="preferences-heading">Appearance</h2></div></div><fieldset class="theme-picker"><legend class="sr-only">Workspace theme</legend><button data-theme="aurora" type="button" aria-pressed="true"><span class="theme-swatch aurora"></span>Aurora</button><button data-theme="midnight" type="button" aria-pressed="false"><span class="theme-swatch midnight"></span>Midnight</button></fieldset><label class="compact-setting"><span><strong>Compact layout</strong><small>Fit more in the workspace</small></span><input type="checkbox" id="compact-layout"></label></section>
-        </div>
-        <section class="sync-privacy card"><div><span class="sync-lock" aria-hidden="true">◈</span><div><h2>Encrypted before upload</h2><p>Sync shares saved scores, category labels, and appearance. Prompt checks run on your device.</p></div></div><button id="clear-sync-history" class="text-button" hidden>Clear synced history</button></section>
+        <section class="card device-list-card" id="linked-devices" aria-labelledby="linked-heading" hidden><div class="panel-header"><h2 id="linked-heading">Linked devices</h2><button class="text-button" id="sync-now" hidden>Sync now</button></div><div id="device-list" class="device-list"></div></section>
+        <details class="card disclosure" id="device-settings">
+          <summary>Appearance and sync settings</summary>
+          <div class="disclosure-content">
+            <fieldset class="theme-picker"><legend>Theme</legend><button data-theme="aurora" type="button" aria-pressed="true"><span class="theme-swatch aurora"></span>Aurora</button><button data-theme="midnight" type="button" aria-pressed="false"><span class="theme-swatch midnight"></span>Midnight</button></fieldset>
+            <label class="compact-setting"><strong>Compact layout</strong><input type="checkbox" id="compact-layout"></label>
+            <p class="setting-note">Sync encrypts saved scores, types of details found, and appearance settings before sharing them with your devices. Your drafts stay where you wrote them.</p>
+            <div class="setting-links"><button id="clear-sync-history" class="text-button" hidden>Clear synced history</button><button class="text-button" id="install">Get the Chrome extension</button><button class="text-button" id="replay-welcome">Replay welcome</button></div>
+          </div>
+        </details>
       </section>
-      <footer class="main-footer"><span>redact<span class="purple">.</span> <span class="footer-divider">/</span> YOUR WORDS, WITH INTENTION</span><span>PLUTO HACKS · 2026</span></footer>
     </main>
   </div>
 

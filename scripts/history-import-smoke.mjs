@@ -28,7 +28,8 @@ try {
   const page = await app.firstWindow();
   await page.getByRole("button", { name: "Open Redact", exact: false }).click();
   await page.waitForFunction(() => document.getElementById("welcome-screen").hidden);
-  await page.getByRole("link", { name: /Exposure history/ }).click();
+  await page.getByRole("link", { name: "History", exact: true }).click();
+  await page.getByText("Import past ChatGPT conversations", { exact: true }).click();
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.evaluate(() => {
@@ -64,7 +65,7 @@ try {
   // Imported detail opened for review, but is not sent to any analysis/model automatically.
   assert.equal(await page.evaluate(() => window.bulkModelCalls), 0);
   await page.locator("#clear-draft").click();
-  await page.getByRole("link", { name: /Exposure history/ }).click();
+  await page.getByRole("link", { name: "History", exact: true }).click();
   await page.locator("#import-filter").selectOption("unscanned");
   assert.equal(await page.locator("#import-table tbody tr").count(), 1);
   assert.match(await page.locator("#import-table").innerText(), /Not scored/);
@@ -105,7 +106,7 @@ try {
   assert.equal(await page.locator("#modal-content").innerText(), "");
   assert.equal(await page.evaluate(async () => (await redactDesktop.getHistory()).summaries.length), 0);
   await page.reload();
-  await page.getByRole("link", { name: /Exposure history/ }).click();
+  await page.getByRole("link", { name: "History", exact: true }).click();
   assert.equal(await page.locator("#import-results").isVisible(), false);
   assert.deepEqual(errors, []);
   console.log("History import passed real Electron worker parsing, preview/selection, duplicates, scores/coverage, inspection, draft handoff, malformed replacement, inert markup, cancellation, clearing, reload, and summary isolation.");

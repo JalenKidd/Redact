@@ -12,7 +12,7 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 
 The welcome screen uses a two-beat logo and wordmark animation inspired by Pulse. Choose **Open Redact** to enter the workspace, or **Take a quick tour** to rehearse the demo. **Replay welcome** repeats the introduction. Page transitions, score counts, and redaction effects follow the system’s reduced-motion preference.
 
-The app bundles its own UI and runs the prompt scanner locally. Check a draft, review the rewrite, and copy it into your AI provider. To keep a manual-check summary, open **Exposure history → History settings**, enable saving, and choose **Save check** after checking a draft. Desktop history persists on this device and labels these records **Manual check**.
+The app bundles its own UI and runs the prompt scanner locally. Check a draft, review the rewrite, and copy it into your AI provider. To keep a manual-check summary, choose **Save check** after checking a draft. Redact asks you to allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
 
 ### Improved privacy checks and rewrite controls
 
@@ -67,7 +67,7 @@ Linked devices sync while Redact is open. **Sync now** refreshes immediately. Ch
 
 ## Import and analyze past ChatGPT conversations
 
-Open **Exposure history → Import past conversations** in the Electron app or local browser dashboard. This feature is separate from saved desktop checks and Chrome submission summaries.
+Open **History → Import past ChatGPT conversations** in the Electron app or browser. This feature is separate from saved desktop checks and Chrome submission summaries.
 
 1. Get a ChatGPT export through **Settings → Data controls → Export data**. Follow the [official export instructions](https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data). Download and extract the ZIP, then find `conversations.json` or the numbered conversation JSON files described in [OpenAI's transfer guide](https://help.openai.com/en/articles/9106926-transfer-exported-conversations-between-chatgpt-accounts).
 2. Choose one or more of those JSON files in Redact. ZIP and HTML imports are not supported. For a fictional trial, select `examples/chatgpt-synthetic.json` from this source repository.
@@ -116,16 +116,16 @@ The local web server also runs the pairing API with SQLite. Use `REDACT_SYNC_URL
 | 0–15s | Open a fresh ChatGPT tab with the fictional draft below. | “I need help writing an email to my professor. I’m about to share two details the AI doesn’t need.” |
 | 15–35s | Click **Check with Redact**. Point to the phone number and student ID, then the **50/100** rules score. | “This check runs on my device. Each category has a fixed weight, so I can see exactly where the score comes from.” |
 | 35–55s | Click **Replace draft**. Point to the same email request and the two placeholders. Send the revised fictional draft. | “My request still makes sense. I can review the draft and decide when to send it.” |
-| 55–70s | Open **Exposure history** and choose **Most recent**. Point to the new 0-point summary. | “I opted into history. Redact saved the date, provider, score, and reason labels in this browser. The original words stayed out of the history.” |
+| 55–70s | Open **History**. Point to the new 0-point summary. | “I opted into history. Redact saved the date, provider, score, and reason labels in this browser. The original words stayed out of the history.” |
 | 70–90s | Open **Privacy guide**. Show the two ChatGPT actions, then the DeepSeek card. | “Before I send, Redact helps me share less. After I send, it shows me how to change my provider’s training or deletion settings.” |
 
 **Fictional draft to paste**
 
 > Draft a short email asking my professor for a one-day extension on my lab report. For reference, my phone number is (202) 555-0147 and my student ID is PH-482716.
 
-**Desktop presentation:** Open Redact with `npm start` and click **Run the demo** for a self-contained walkthrough. To show real desktop persistence, exit the demo, check the fictional draft, enable history, choose **Save check**, and open **Exposure history**.
+**Desktop presentation:** Open Redact with `npm start` and click **Take a tour** for a walkthrough. To show real desktop persistence, exit the demo, check the fictional draft, choose **Save check**, and open **History**.
 
-**Rehearsal or backup:** Open the dashboard and click **Run the demo**. Follow the on-screen steps through **Check my prompt**, **Replace draft**, and **Simulate send**. Show the 75, 50, 20, and 0 scores in highest-exposure order. Explain that the prior entries are fictional and the simulated send stays in the page. Choose **Exit demo** to return to the real workspace.
+**Rehearsal or backup:** Open the dashboard and click **Take a tour**. Follow the on-screen steps through **Check my prompt**, **Replace draft**, and **Simulate send**. Show the 75, 50, 20, and 0 scores in highest-exposure order. Explain that the prior entries are fictional and the simulated send stays in the page. Choose **Exit demo** to return to the real workspace.
 
 **Before judging:** Run the flow once on the same Chrome profile and laptop you'll use on stage. Enable history in the popup, confirm that a fictional send appears in the dashboard, and rehearse switching tabs. Preload Chrome’s local model only if you plan to show contextual detection. The 50-to-0 example uses the rules scanner and works without a model download. If ChatGPT or its composer is unavailable, use the dashboard rehearsal.
 
