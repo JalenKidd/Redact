@@ -12,7 +12,7 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 
 The welcome screen uses a two-beat logo and wordmark animation inspired by Pulse. Choose **Open Redact** to enter the workspace, or **Take a quick tour** to rehearse the demo. **Replay welcome** repeats the introduction. Page transitions, score counts, and redaction effects follow the system’s reduced-motion preference.
 
-The app bundles its own UI and runs the prompt scanner locally. Check a draft, review the rewrite, and copy it into your AI provider. To keep a manual-check summary, choose **Save check** after checking a draft. Redact asks you to allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
+Redact opens to **AI tools**, a directory of services grouped by use. Pick a tool and choose **Check a prompt** to use the local scanner. Review and copy the suggested draft, then open the provider and paste it there. **Check any prompt** also works with services outside the directory. To keep a summary, choose **Save check** and allow saving the first time. Desktop history persists on this device and labels these records **Manual check**.
 
 ### Improved privacy checks and rewrite controls
 
@@ -117,7 +117,7 @@ The local web server also runs the pairing API with SQLite. Use `REDACT_SYNC_URL
 | 15–35s | Click **Check with Redact**. Point to the phone number and student ID, then the **50/100** rules score. | “This check runs on my device. Each category has a fixed weight, so I can see exactly where the score comes from.” |
 | 35–55s | Click **Replace draft**. Point to the same email request and the two placeholders. Send the revised fictional draft. | “My request still makes sense. I can review the draft and decide when to send it.” |
 | 55–70s | Open **History**. Point to the new 0-point summary. | “I opted into history. Redact saved the date, provider, score, and reason labels in this browser. The original words stayed out of the history.” |
-| 70–90s | Open **Privacy guide**. Show the two ChatGPT actions, then the DeepSeek card. | “Before I send, Redact helps me share less. After I send, it shows me how to change my provider’s training or deletion settings.” |
+| 70–90s | Open **AI tools → ChatGPT → Privacy and data settings**. Show the training and deletion actions. | “Before I send, Redact helps me share less. After I send, it shows me how to change my provider’s training or deletion settings.” |
 
 **Fictional draft to paste**
 

@@ -11,11 +11,13 @@ const syncClient = RedactSync.createSyncClient({
   baseURL: location.hostname === "127.0.0.1" ? location.origin : RedactConfig.syncUrl || RedactConfig.hostedUrl,
 });
 
-const routeNames = { scan: "Check", history: "History", overview: "Overview", policies: "Privacy guide", devices: "Devices" };
+const routeNames = { tools: "AI tools", scan: "Check", history: "History", overview: "Overview", devices: "Devices" };
 const scrollBehavior = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
 const tone = score => score >= 50 ? "high" : score >= 25 ? "moderate" : score > 0 ? "low" : "clear";
 
-let activeRoute = "scan";
+let activeRoute = "tools";
+let selectedTool = null;
+let focusDraftOnScan = false;
 let demo = null;
 let draftBeforeDemo = "";
 let checkVersion = 0;
@@ -113,7 +115,7 @@ function setDraft(text, keepScore = false) {
 }
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
-  lastReview = { text, result, choices: {}, plan: null };
+  lastReview = { text, result, choices: {}, plan: null, pending };
   const hasFindings = result.matches.length > 0;
   const firstResult = $("check-result").hidden;
   $("check-result").hidden = false;
@@ -187,6 +189,7 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
     $("rewrite-choices").append(row);
   }
   $("copy-rewrite").disabled = $("replace-draft").disabled = pending;
+  renderResultActions();
   updateRewrite();
   if (firstResult) motion.reveal($("check-result"));
   if (!pending) $("announcement").textContent = $("result-heading").textContent + ". " + $("result-summary").textContent;
@@ -286,10 +289,11 @@ function startDemo() {
     overview: "Explore the activity and exposure categories from the fictional checks.",
     scan: "01 / Check this fictional draft before sharing it with AI.",
     history: "See how fictional prompts rank by exposure score.",
-    policies: "05 / Show how training and deletion are handled separately.",
+    tools: "Choose ChatGPT to explore its privacy settings.",
     devices: "Leave rehearsal mode to connect a real device.",
   } };
   document.body.classList.add("rehearsing");
+  renderDestination();
   $("demo-banner").hidden = false;
   $("demo-send").hidden = true;
   $("start-demo").firstChild.textContent = "Restart tour ";
@@ -300,6 +304,7 @@ function startDemo() {
 function endDemo() {
   demo = null;
   document.body.classList.remove("rehearsing");
+  renderDestination();
   $("demo-banner").hidden = true;
   $("demo-send").hidden = true;
   $("start-demo").firstChild.textContent = "Take a tour ";
@@ -320,7 +325,7 @@ function simulateSend() {
     kinds: result.reasons.map(reason => reason.kind),
   });
   $("demo-send").hidden = true;
-  demo.instructions.history = "04 / Compare the new " + result.score + "-point summary with earlier fictional prompts. Then open Privacy guide.";
+  demo.instructions.history = "04 / Compare the new " + result.score + "-point summary with earlier fictional prompts. Then explore AI tools.";
   $("history-filter").value = "all";
   $("history-sort").value = "score";
   navigate("history");
@@ -580,34 +585,116 @@ function showPolicyAction(policy, action) {
   }
 }
 
-function renderPolicies() {
-  for (const policy of RedactPolicies) {
-    const card = node("details", "card policy-card disclosure");
-    card.name = "privacy-provider";
-    const provider = node("summary", "provider-title");
-    const avatar = node("span", "provider-avatar " + policy.id, policy.icon);
-    avatar.setAttribute("aria-hidden", "true");
-    provider.append(avatar, node("span", "provider-name", policy.name));
-    const details = node("div", "policy-details");
-    card.append(provider, details);
-    for (const [question, answer] of [
-      ["What can it collect?", policy.collects],
-      ["Can it use my chats for training?", policy.training],
-      ["What can I change?", policy.controls],
-    ]) {
-      const section = node("section", "policy-question");
-      section.append(node("h3", null, question), node("p", null, answer));
-      details.append(section);
-    }
-    const controls = node("div", "policy-buttons");
-    controls.append(button("Turn off training ↗", "primary-button", () => showPolicyAction(policy, "optOut")),
-      button("Delete data ↗", "secondary-button", () => showPolicyAction(policy, "remove")));
-    const sources = node("div", "policy-links");
-    for (const source of policy.sources) sources.append(link(source.label + " ↗", source.url));
-    const checked = node("div", "tiny-label source-date", "LAST CHECKED " + policy.checked.toUpperCase());
-    details.append(controls, sources, checked);
-    $("policy-cards").append(card);
+function policyDetails(policy) {
+  const details = node("details", "tool-privacy");
+  details.append(node("summary", null, "Privacy and data settings"));
+  for (const [question, answer] of [
+    ["What can it collect?", policy.collects],
+    ["Can it use my chats for training?", policy.training],
+    ["What can I change?", policy.controls],
+  ]) {
+    const section = node("section", "policy-question");
+    section.append(node("h3", null, question), node("p", null, answer));
+    details.append(section);
   }
+  const controls = node("div", "policy-buttons");
+  controls.append(button("Turn off training", "secondary-button", () => showPolicyAction(policy, "optOut")),
+    button("Delete data", "secondary-button", () => showPolicyAction(policy, "remove")));
+  const sources = node("div", "policy-links");
+  for (const source of policy.sources) sources.append(link(source.label + " ↗", source.url));
+  details.append(controls, sources, node("p", "source-date", "Last checked " + policy.checked));
+  return details;
+}
+
+function toolMark(tool) {
+  const mark = node("span", "tool-mark " + tool.color, tool.mark);
+  mark.setAttribute("aria-hidden", "true");
+  return mark;
+}
+
+function renderDestination() {
+  const tool = demo ? null : selectedTool;
+  $("tool-destination").hidden = !tool;
+  if (tool) {
+    $("selected-tool").replaceChildren(toolMark(tool), node("span", null, "Checking for " + tool.name));
+    const destination = $("open-destination");
+    destination.href = tool.url;
+    destination.textContent = "Open " + tool.name + " ↗";
+  }
+  renderResultActions();
+}
+
+function renderResultActions() {
+  const hasFindings = Boolean(lastReview?.result.matches.length);
+  const tool = selectedTool && !demo;
+  $("result-actions").hidden = !lastReview || lastReview.pending || Boolean(demo) || (hasFindings && !tool);
+  $("copy-draft").hidden = hasFindings;
+  $("open-destination").hidden = !tool;
+}
+
+function openTool(tool) {
+  const identity = node("div", "tool-identity");
+  identity.append(toolMark(tool), node("p", null, tool.description));
+  const actions = node("div", "dialog-actions");
+  actions.append(button("Check a prompt", "primary-button", () => {
+    selectedTool = tool;
+    renderDestination();
+    modal.close();
+    focusDraftOnScan = true;
+    navigate("scan");
+  }), link("Open " + tool.name + " ↗", tool.url, "secondary-button"));
+  const policy = RedactPolicies.find(item => item.id === tool.id);
+  const privacy = policy ? policyDetails(policy) : tool.privacy ? link("Official privacy information ↗", tool.privacy, "tool-privacy-link") : null;
+  openDialog("AI TOOLS", tool.name, identity, actions, ...(privacy ? [privacy] : []));
+}
+
+function renderTools() {
+  const query = $("tool-search").value.trim().toLowerCase();
+  const container = $("tool-groups");
+  container.replaceChildren();
+  let total = 0;
+  RedactCatalog.toolGroups.forEach((group, index) => {
+    const matches = group.tools.filter(tool => [tool.name, tool.description, group.name].some(text => text.toLowerCase().includes(query)));
+    if (!matches.length) return;
+    total += matches.length;
+    const id = "tool-group-" + index;
+    const section = node("section", "tool-group");
+    section.setAttribute("aria-labelledby", id + "-title");
+    const header = node("div", "tool-group-header");
+    const title = node("h2", null, group.name);
+    title.id = id + "-title";
+    header.append(title);
+    const list = node("ul", "tool-grid");
+    list.id = id;
+    const extra = [];
+    for (const tool of matches) {
+      const tile = button("", "tool-tile", () => openTool(tool));
+      tile.append(toolMark(tool), node("span", "tool-name", tool.name));
+      const item = node("li");
+      item.append(tile);
+      if (!query && list.children.length >= 4) {
+        item.hidden = true;
+        extra.push(item);
+      }
+      list.append(item);
+    }
+    if (extra.length) {
+      const label = "Show all " + matches.length;
+      const toggle = button(label, "text-button", () => {
+        const open = toggle.getAttribute("aria-expanded") === "true";
+        for (const item of extra) item.hidden = open;
+        toggle.setAttribute("aria-expanded", String(!open));
+        toggle.textContent = open ? label : "Show fewer";
+      });
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-controls", id);
+      header.append(toggle);
+    }
+    section.append(header, list);
+    container.append(section);
+  });
+  $("no-tools").hidden = total > 0;
+  $("tool-search-status").textContent = query ? total + (total === 1 ? " tool found" : " tools found") : "";
 }
 
 async function showAi() {
@@ -695,12 +782,13 @@ async function enterWorkspace(tour = false) {
   if (tour) startDemo();
   else motion.page($(activeRoute + "-page"));
   if (tour) $("check-prompt").focus({ preventScroll: true });
-  else prompt.focus({ preventScroll: true });
+  else if (activeRoute === "scan") prompt.focus({ preventScroll: true });
+  else $("tools-heading").focus({ preventScroll: true });
 }
 
 function routeFromHash() {
   const hash = location.hash.slice(1);
-  return Object.hasOwn(routeNames, hash) ? hash : "scan";
+  return Object.hasOwn(routeNames, hash) ? hash : "tools";
 }
 
 function renderRoute(route, animate = true) {
@@ -719,6 +807,10 @@ function renderRoute(route, animate = true) {
     motion.page($(route + "-page"), order.indexOf(route) > order.indexOf(previous) ? 1 : -1);
   }
   if (demo) $("demo-instruction").textContent = demo.instructions[route];
+  if (route === "scan" && focusDraftOnScan) {
+    focusDraftOnScan = false;
+    prompt.focus({ preventScroll: true });
+  }
   if (route === "history") renderHistory();
   if (["history", "overview", "devices"].includes(route)) void refreshHistory();
   document.dispatchEvent(new CustomEvent("redact:route", { detail: route }));
@@ -772,6 +864,17 @@ $("check-prompt").addEventListener("click", () => void runCheck());
 $("copy-rewrite").addEventListener("click", () => {
   if (lastReview?.text === prompt.value) void copy(lastReview.plan.text, "Rewrite copied.");
 });
+$("copy-draft").addEventListener("click", () => {
+  if (lastReview?.text === prompt.value) void copy(prompt.value, "Draft copied.");
+});
+$("tool-search").addEventListener("input", renderTools);
+for (const check of document.querySelectorAll("[data-check-any]")) {
+  check.addEventListener("click", () => {
+    selectedTool = null;
+    renderDestination();
+    focusDraftOnScan = true;
+  });
+}
 $("replace-draft").addEventListener("click", replaceDraft);
 $("scoring-info").addEventListener("click", showScoring);
 $("enable-ai").addEventListener("click", () => void showAi());
@@ -800,7 +903,7 @@ RedactHistoryUI.init({ openDialog, openDraft: text => {
   navigate("scan");
   prompt.focus({ preventScroll: true });
 } });
-renderPolicies();
+renderTools();
 if (desktop) {
   document.body.classList.add("desktop-app");
   if (desktop.platform === "darwin") document.body.classList.add("desktop-mac");
@@ -811,7 +914,7 @@ else {
   renderRoute(routeFromHash());
   let seenWelcome = false;
   try { seenWelcome = localStorage.getItem("redact.welcomeSeen.v1") === "true"; } catch {}
-  if (!seenWelcome && ["", "#scan"].includes(location.hash)) showWelcome();
+  if (!seenWelcome && ["", "#tools", "#scan"].includes(location.hash)) showWelcome();
 }
 void refreshHistory();
 void RedactModel.availability().then(status => {

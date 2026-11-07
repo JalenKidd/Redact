@@ -428,3 +428,102 @@ html[data-slide="previous"] { --enter-x: -24px; --exit-x: 14px; }
 #workspace .rewrite-choices>p, #workspace .rewrite-choice code, #workspace .rewrite-choice small { color: var(--work-muted); }
 #workspace .rewrite-choice { border-color: var(--work-line); }
 #workspace .rewrite-comparison { margin: 0 19px 13px; padding: 10px 13px; background: var(--work-field); color: var(--work-ink); }
+
+.tools-heading { align-items: flex-end; }
+#tools-heading:focus { outline: none; }
+.tool-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  border: 1px solid var(--work-line);
+  border-radius: 12px;
+  background: var(--work-card);
+  color: var(--work-muted);
+  margin-bottom: 15px;
+}
+.tool-search:focus-within { border-color: var(--work-accent); box-shadow: 0 0 0 2px #8b60ce2e; }
+.tool-search svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; flex: none; }
+.tool-search input { width: 100%; min-width: 0; padding: 11px 0; background: transparent; color: var(--work-ink); border: 0; font: inherit; font-size: 16px; outline: 0; }
+.tool-search input::placeholder { color: var(--work-muted); }
+.tool-group { margin-bottom: 12px; padding: 13px; background: var(--work-card); border: 1px solid var(--work-line); border-radius: 15px; }
+.tool-group-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 3px 9px; }
+.tool-group-header h2 { margin: 0; font-size: 15px; font-weight: 670; }
+.tool-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.tool-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 100%;
+  min-height: 77px;
+  padding: 7px 3px;
+  background: var(--work-field);
+  border: 1px solid var(--work-line);
+  border-radius: 11px;
+  color: var(--work-ink);
+  transition: transform .2s var(--spring), border-color .2s;
+}
+.tool-tile:hover { transform: translateY(-2px); border-color: var(--work-accent); }
+.tool-tile:active { transform: scale(.97); }
+.tool-name { font-size: 12px; font-weight: 620; line-height: 1.25; overflow-wrap: anywhere; }
+.tool-mark {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  flex: none;
+  border-radius: 10px;
+  font-size: 19px;
+  font-weight: 710;
+  line-height: 1;
+  letter-spacing: -.05em;
+}
+.tool-mark.green { background: #cdebe0; color: #19563f; }
+.tool-mark.peach { background: #ffdccc; color: #8c3722; }
+.tool-mark.blue { background: #d8e6ff; color: #23468e; }
+.tool-mark.spectrum { background: linear-gradient(135deg, #c7edfc, #e4d4fc 55%, #fcd8b9); color: #432660; }
+.tool-mark.teal { background: #ccece9; color: #17595b; }
+.tool-mark.ink { background: #252233; color: #f6eeff; }
+.tool-mark.violet { background: #e8dbfb; color: #53308e; }
+.tool-mark.rose { background: #f9d3e5; color: #932c55; }
+.tool-identity { display: flex; gap: 12px; align-items: center; margin-top: 14px; }
+#modal-content .tool-identity p { margin: 0; }
+.tool-privacy { margin-top: 18px; border-top: 1px solid var(--line); }
+.tool-privacy summary { padding: 11px 0; cursor: pointer; font-weight: 640; }
+.tool-privacy-link { display: inline-block; color: var(--purple-deep); margin-top: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.tool-destination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--work-line);
+  border-radius: 11px;
+  background: var(--work-card);
+  font-size: 13px;
+}
+#selected-tool { display: flex; align-items: center; gap: 7px; }
+.tool-destination .tool-mark { width: 25px; height: 25px; border-radius: 7px; font-size: 14px; }
+.result-actions { display: flex; align-items: center; gap: 12px; padding: 9px 0 12px; }
+#no-tools .text-button { display: inline-block; margin-top: 8px; }
+
+@media (max-width: 620px) {
+  #workspace .tools-heading { flex-wrap: wrap; align-items: flex-start; gap: 9px; }
+  #workspace .tools-heading .primary-button { padding: 8px 10px; gap: 8px; }
+  .tool-group { padding: 9px; }
+  .tool-group-header { padding: 0 1px 8px; }
+  .tool-group-header h2 { font-size: 14px; }
+  .tool-grid { gap: 4px; }
+  .tool-name { font-size: 10px; }
+  .tool-tile { min-height: 72px; }
+  .tool-destination { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-tile { transition: none; }
+  .tool-tile:hover, .tool-tile:active { transform: none; }
+}

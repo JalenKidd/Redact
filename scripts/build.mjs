@@ -44,6 +44,7 @@ await Promise.all([
   writeFile(join(extension, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n"),
 ]);
 await Promise.all([
+  build({ entryPoints: [join(root, "shared/ai-tools.mjs")], outfile: join(dist, "ai-tools.js"), bundle: true, format: "iife", globalName: "RedactCatalog", target: "es2022" }),
   build({ entryPoints: [join(root, "shared/sync.mjs")], outfile: join(dist, "sync.js"), bundle: true, format: "iife", globalName: "RedactSync", target: "es2022" }),
   build({ entryPoints: [join(root, "web/vendor-entry.js")], outfile: join(dist, "qr.js"), bundle: true, format: "iife", target: "es2022" }),
 ]);

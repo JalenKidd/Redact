@@ -17,11 +17,25 @@ try {
   ], env: { ...process.env, REDACT_USER_DATA_DIR: profile } });
   application = await launch();
   let page = await application.firstWindow();
-  await page.getByRole("button", { name: "Open Redact", exact: false }).click();
-  await page.waitForFunction(() => document.getElementById("welcome-screen").hidden);
-  await page.waitForSelector("#load-example");
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
+  await page.getByRole("button", { name: "Open Redact", exact: false }).click();
+  await page.waitForFunction(() => document.getElementById("welcome-screen").hidden);
+  await page.getByRole("heading", { name: "Find your AI." }).waitFor();
+  await page.getByRole("button", { name: "Show all 8" }).click();
+  await page.getByRole("button", { name: "DeepSeek", exact: true }).waitFor();
+  await page.getByRole("searchbox", { name: "Search AI tools" }).fill("claude");
+  assert.equal(await page.locator(".tool-tile:visible").count(), 1);
+  await page.getByRole("button", { name: "Claude", exact: true }).click();
+  await application.evaluate(({ shell }) => {
+    shell.openExternal = async url => { globalThis.redactTestOpenedUrl = url; };
+  });
+  await page.getByRole("link", { name: "Open Claude" }).click();
+  assert.equal(await application.evaluate(() => globalThis.redactTestOpenedUrl), "https://claude.ai/");
+  assert.equal(application.windows().length, 1);
+  await page.getByRole("button", { name: "Check a prompt", exact: true }).click();
+  await page.getByText("Checking for Claude", { exact: true }).waitFor();
+  await page.waitForSelector("#load-example");
   assert.equal(await page.title(), "Redact — Think before you send.");
   assert.equal(await page.evaluate(() => typeof require), "undefined");
   assert.equal(await page.locator("#check-result").isVisible(), false);
@@ -32,6 +46,7 @@ try {
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "45");
   assert.equal(await page.locator("#score-value").isVisible(), false);
   assert.equal(await page.locator("#rewritten").isVisible(), true);
+  assert.equal(await page.getByRole("link", { name: "Open Claude" }).getAttribute("href"), "https://claude.ai/");
   await page.getByText("See score and reasons", { exact: true }).click();
   assert.equal(await page.locator("#score-value").isVisible(), true);
   await page.getByText("Choose what to keep", { exact: true }).click();
@@ -70,6 +85,7 @@ try {
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "50");
   await page.getByRole("button", { name: "Replace draft", exact: false }).click();
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "0");
+  assert.equal(await page.getByRole("button", { name: "Copy draft", exact: true }).isVisible(), true);
   await page.getByRole("button", { name: "Save check", exact: true }).click();
   await page.getByRole("button", { name: "Allow and save" }).click();
   await page.waitForFunction(() => document.getElementById("save-check").textContent === "Saved ✓");
@@ -101,7 +117,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".history-score b").length === 4);
   assert.deepEqual(await page.locator(".history-score b").allTextContents(), ["75", "50", "20", "0"]);
   assert.equal(await page.evaluate(async () => (await window.redactDesktop.getHistory()).summaries.length), 0);
-  console.log("Electron passed welcome, name/address detection, keep/replace choices, animated scores, stale-draft reset, local AI setup, local history, restart persistence, clearing, and the guided tour.");
+  console.log("Electron passed the AI directory, provider launch, draft handoff, name/address detection, rewrite choices, local AI, history, and the guided tour.");
 } finally {
   await application?.close();
   await rm(profile, { recursive: true, force: true, maxRetries: 3 });

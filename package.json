@@ -36,6 +36,7 @@
     "files": [
       "desktop/**",
       "dist/**",
+      "shared/ai-tools.mjs",
       "shared/scanner.js",
       "shared/context.js",
       "extension/icons/128.png",

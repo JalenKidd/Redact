@@ -3,6 +3,7 @@ import { join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHistoryStore } from "./history-store.mjs";
 import { createLocalAi } from "./local-ai.mjs";
+import { toolGroups } from "../shared/ai-tools.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const renderer = join(root, "dist");
@@ -12,6 +13,7 @@ const externalHosts = new Set([
   "chatgpt.com", "privacy.openai.com", "openai.com", "help.openai.com",
   "chat.deepseek.com", "cdn.deepseek.com", "developer.chrome.com", new URL(hosted).hostname,
 ]);
+const toolLinks = new Set(toolGroups.flatMap(group => group.tools.flatMap(tool => tool.privacy ? [tool.url, tool.privacy] : [tool.url])));
 const syncSources = hosted + (app.isPackaged ? "" : " http://127.0.0.1:4173");
 const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src " + syncSources + "; object-src 'none'; base-uri 'none'; form-action 'none'";
 let window;
@@ -112,7 +114,7 @@ function createWindow() {
   window.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const destination = new URL(url);
-      if (destination.protocol === "https:" && externalHosts.has(destination.hostname)) {
+      if (destination.protocol === "https:" && (toolLinks.has(destination.href) || externalHosts.has(destination.hostname))) {
         void shell.openExternal(url).catch(error => console.error("Could not open provider link", error.message));
       }
     } catch {}
