@@ -35,6 +35,7 @@
       "desktop/**",
       "dist/**",
       "shared/scanner.js",
+      "shared/context.js",
       "extension/icons/128.png",
       "package.json"
     ],

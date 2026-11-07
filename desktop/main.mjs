@@ -2,6 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, se
 import { join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHistoryStore } from "./history-store.mjs";
+import { createLocalAi } from "./local-ai.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const renderer = join(root, "dist");
@@ -12,6 +13,7 @@ const externalHosts = new Set([
 ]);
 const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 let window;
+const localAi = createLocalAi();
 
 app.setName("Redact");
 if (process.env.REDACT_USER_DATA_DIR) {
@@ -48,6 +50,10 @@ if (!app.requestSingleInstanceLock()) {
 
     const history = createHistoryStore(join(app.getPath("userData"), "exposure-history.json"));
     for (const [channel, handler] of [
+      ["redact:ai-status", () => localAi.getStatus()],
+      ["redact:configure-ai", enabled => localAi.setEnabled(enabled)],
+      ["redact:analyze-context", text => localAi.analyze(text)],
+      ["redact:cancel-analysis", () => localAi.cancel()],
       ["redact:history", () => history.getHistory()],
       ["redact:set-history", enabled => history.setEnabled(enabled)],
       ["redact:save-summary", kinds => history.saveSummary(kinds)],
@@ -114,7 +120,7 @@ function createWindow() {
   });
   window.webContents.on("will-attach-webview", event => event.preventDefault());
   window.once("ready-to-show", () => window.show());
-  window.on("closed", () => { window = null; });
+  window.on("closed", () => { void localAi.setEnabled(false); window = null; });
   void window.loadURL(home);
 }
 

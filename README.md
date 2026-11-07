@@ -12,6 +12,36 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 
 The app bundles its own UI and runs the prompt scanner locally. Check a draft, review the rewrite, and copy it into your AI provider. To keep a manual-check summary, open **Exposure history → History settings**, enable saving, and choose **Save check** after checking a draft. Desktop history persists on this device and labels these records **Manual check**.
 
+### Improved privacy checks and rewrite controls
+
+The scanner now catches explicit full-name introductions (including many accented and hyphenated names), common numbered street addresses, several first-person/family health disclosures, labeled passwords/tokens, and additional credential formats. These are English-oriented heuristics, not universal person-name, address, or medical recognition. Contextual AI can add further exact-span findings.
+
+After a check, **Choose what the task needs** lets you replace each flagged detail or keep necessary context. For example, keep a medical condition when preparing questions for a doctor while replacing an email address. The before/after comparison keeps retained details in the revised exposure score. Distinct values use distinct placeholders, and repeated identical values share a placeholder. Existing placeholders are not reused for a different value. Text outside the selected spans—including task instructions, units, and output constraints—is preserved.
+
+The revised score uses the same rules and carries retained contextual findings through the edits. It does not claim a fresh semantic scan of the rewrite or guaranteed downstream answer quality. Review the final text before sharing. A failed or incomplete contextual check is labeled **rules only**; a zero score means no detected signals, not guaranteed safety.
+
+### Optional local contextual AI in Electron
+
+The desktop app can use a separately installed **Ollama** server. This is opt-in for each Redact session; drafts are not sent to it until you enable the connection and choose **Check my prompt**.
+
+1. Install a current version of [Ollama](https://ollama.com/download).
+2. Download the model once with `ollama pull qwen3:4b`. This download uses the internet and requires several GB of disk space.
+3. Disable Ollama cloud features and restart its server. Redact checks `/api/status` and requires `cloud.disabled: true`, then verifies the installed model through `/api/tags` and `/api/show`. An older server that cannot provide these checks will remain unavailable.
+4. In Redact, choose **Check contextual AI availability**, then **Enable for this session**. The setup dialog discloses the local recipient and limits. Use the same dialog to disable it.
+
+On Windows, quit the Ollama tray application before starting a local-only server in a separate PowerShell window:
+
+```powershell
+$env:OLLAMA_NO_CLOUD = "1"
+ollama serve
+```
+
+Leave that window running. On macOS/Linux, the equivalent terminal command is `OLLAMA_NO_CLOUD=1 ollama serve`. For a managed Ollama service or desktop application, set the variable for that service/application and restart it as described in [Ollama's configuration instructions](https://docs.ollama.com/faq#how-do-i-disable-ollamas-cloud-features).
+
+Redact contacts only `127.0.0.1:11434` through a main-process adapter, ignores ambient proxy configuration, does not follow redirects, and does not download models or call cloud endpoints. Each inference rechecks local-only status. The model may nominate bounded exact spans; deterministic local code validates spans, assigns scores, and applies edits. It receives no tools or filesystem permissions from Redact. There is a 6,000-character contextual limit, 45-second deadline, bounded responses, cancellation on draft edits, and a rules-only fallback. The full rules scan supports 20,000 characters. Enabling local AI does not save prompts or change history consent.
+
+The connection and failure paths are covered with controlled local responses. Actual Qwen accuracy, speed, and memory use still need benchmarking on target hardware; a real model inference was not run in this development environment. Loopback traffic is protected by the user's local Ollama configuration, not by an application sandbox around the separately installed server.
+
 ### Package the desktop app
 
 - `npm run package:desktop` creates a runnable application folder for the current OS.
@@ -22,6 +52,8 @@ The app bundles its own UI and runs the prompt scanner locally. Check a draft, r
 Outputs go in `release/`. Build each distribution on its target OS. Mac builds are unsigned local/demo builds. Public distribution needs platform signing credentials.
 
 `npm test` checks scoring, consent, and the two history stores. `npm run test:desktop` launches an isolated Electron test that verifies rewriting, saving, persistence after restart, and clearing. `REDACT_USER_DATA_DIR` can point the app at an isolated profile for tests and rehearsals.
+
+The expanded tests cover missed disclosures, benign topics, Unicode names, credential formats, placeholder collisions, retained-context scoring, output validation, local-only checks, cancellation, and transport limits. For restricted Linux CI, `REDACT_HEADLESS=1 npm run test:desktop` uses headless Chromium and a test-only shim for the Unix-socket singleton lock. The normal desktop launch and normal smoke test do not load that shim. Platform installer signing and live model quality require separate target-machine checks.
 
 ## Website and Chrome extension
 
@@ -54,8 +86,12 @@ Outputs go in `release/`. Build each distribution on its target OS. Mac builds a
 ## How it works
 
 - **Extension.** The content script runs on ChatGPT. It checks the visible draft when asked, guards against replacing an edited draft, and waits for a matching visible user message before logging an opted-in send.
-- **Scanner.** Rules cover common identifiers and credentials. Chrome's Prompt API can nominate verbatim contextual spans on compatible devices. Fixed weights count each category once and cap the score at 100. Rewrites replace the matched spans with typed placeholders. A score of zero means that this scan found no signals.
+- **Scanner.** Version 2 rules cover common identifiers, explicit names, numbered street addresses, selected health disclosures, and credentials. Chrome's Prompt API or the opt-in desktop Ollama adapter can nominate verbatim contextual spans. Fixed weights count each category once and cap the score at 100. Desktop/dashboard rewrites let users keep necessary details; the extension applies consistent placeholders. A score of zero means that this scan found no signals.
 - **History.** The extension keeps up to 200 summaries in local Chrome storage. The allowlisted dashboard can only read those summaries. The popup owns consent and clearing history. Unchecked submissions use rules for a quick score, while an unchanged checked draft can also carry the contextual categories that were found.
 - **Guide.** Source-linked cards cover ChatGPT and DeepSeek consumer services. Actions open provider settings or a privacy portal and offer reviewable deletion request text. Users submit any request themselves.
 - **Desktop app.** Electron bundles the UI in an isolated renderer with a narrow preload bridge. Manual-check history is opt-in and stored atomically in the app’s local data folder. Provider links open in the system browser.
-- **Scope.** The desktop app and responsive website support manual checking. Inline checking and observed-submission history target desktop Chrome and the ChatGPT web composer. The desktop app uses the rules scanner. Official chat export import is future work.
+- **Scope.** The desktop app and responsive website support manual checking. Inline checking and observed-submission history target desktop Chrome and the ChatGPT web composer. The desktop app uses rules by default with an optional local Ollama connection. Official chat export import is future work.
+
+### Integration with device synchronization
+
+This change leaves `desktop/history-store.mjs`, summary record shapes, category keys/weights, consent persistence, and the sync implementation untouched. New analysis results contain `version`, `coverage`, and stable occurrence IDs for the current draft. Keep model enablement and in-flight analysis local to a session. Never replay inference jobs or transfer prompt text merely because a summary synchronizes. Coordinate the additive IPC handlers in `desktop/main.mjs` and `desktop/preload.cjs` when merging a sync branch. Historical summaries retain their original category-weight semantics; detection coverage has expanded and should not be treated as identical across scanner versions.

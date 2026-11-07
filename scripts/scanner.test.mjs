@@ -30,7 +30,7 @@ test("contextual findings must point to an exact span outside placeholders", () 
     { kind: "constructor", text: "Draft" },
   ]);
   assert.equal(review.score, 45);
-  assert.equal(review.rewritten, "Draft a message from [name] to [name] at [address].");
+  assert.equal(review.rewritten, "Draft a message from [name 2] to [name] at [address].");
 });
 
 test("history requires consent, stores summaries only, and serves them to the configured site", async () => {

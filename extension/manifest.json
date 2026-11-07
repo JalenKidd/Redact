@@ -30,6 +30,7 @@
       ],
       "js": [
         "scanner.js",
+        "context.js",
         "model.js",
         "content.js"
       ],

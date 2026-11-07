@@ -85,6 +85,7 @@ function emptyFinding(symbol, text) {
 }
 
 function resetReview() {
+  RedactModel.cancel();
   lastReview = null;
   ++checkVersion;
   $("check-prompt").disabled = false;
@@ -113,7 +114,7 @@ function setDraft(text, label) {
 }
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
-  lastReview = { text, result };
+  lastReview = { text, result, choices: {}, plan: null };
   $("save-check").hidden = !desktop || !!demo || pending;
   $("save-check").disabled = false;
   $("save-check").textContent = "Save check";
@@ -125,7 +126,7 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
   $("score-rating").className = "score-badge " + tag;
   $("score-description").textContent = replaced ? "Draft replaced. Review it before sharing." :
     pending ? "Rules check ready. Checking context on this device…" :
-      result.contextual ? "Checked with rules and on-device AI." : "Checked with rules on this device.";
+      result.contextual ? "Checked with rules and on-device AI." : (result.coverage?.reason || "Rules only. Contextual coverage is limited.");
   $("finding-count").textContent = result.reasons.length + (result.reasons.length === 1 ? " CATEGORY" : " CATEGORIES");
   $("findings").replaceChildren();
   if (!result.reasons.length) $("findings").append(emptyFinding("✓", "Review your draft for anything you still want to keep private."));
@@ -152,7 +153,48 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
     }
     $("highlighted").append(document.createTextNode(text.slice(offset)));
   }
+  $("rewrite-choices").replaceChildren();
+  const counts = {};
+  for (const match of result.matches) {
+    const row = node("div", "rewrite-choice");
+    const label = node("label");
+    const occurrence = counts[match.kind] = (counts[match.kind] || 0) + 1;
+    const id = `choice-${match.start}-${match.end}`;
+    label.htmlFor = id;
+    label.append(node("strong", null, Redact.categories[match.kind].label + " " + occurrence),
+      node("code", null, text.slice(match.start, match.end)));
+    const select = node("select");
+    select.id = id;
+    select.disabled = pending;
+    for (const [value, title] of [["replace", "Replace with placeholder"], ["keep", "Keep needed context"]]) {
+      const option = node("option", null, title);
+      option.value = value;
+      select.append(option);
+    }
+    select.addEventListener("change", () => {
+      if (lastReview?.text !== text || lastReview.result !== result) return;
+      lastReview.choices[match.id] = select.value;
+      updateRewrite();
+    });
+    row.append(label, select);
+    if (match.kind === "medical") row.append(node("small", null, "Removing a condition may make health-related guidance less useful. Keep it if the task needs it."));
+    $("rewrite-choices").append(row);
+  }
+  $("copy-rewrite").disabled = $("replace-draft").disabled = pending;
+  updateRewrite();
   if (!pending) $("announcement").textContent = result.score + " out of 100. " + Redact.rating(result.score) + ".";
+}
+
+function updateRewrite() {
+  if (!lastReview) return;
+  const { text, result, choices } = lastReview;
+  const plan = Redact.rewrite(text, result, choices);
+  lastReview.plan = plan;
+  $("rewritten").textContent = plan.text;
+  const kept = plan.edits.filter(edit => edit.action === "keep").length;
+  $("rewrite-comparison").textContent = `Original ${result.score}/100 → Revised ${plan.score}/100. ` +
+    (kept ? `${kept} detail${kept === 1 ? "" : "s"} kept by you. ` : "") +
+    "Same rules and retained contextual findings; the rewrite has not received a new AI scan. Zero means no detected signals.";
 }
 
 async function runCheck() {
@@ -170,7 +212,7 @@ async function runCheck() {
     updateDemo(rules.matches.length ? "02 / Review the flagged details, then choose Replace draft." :
       "03 / Your practice draft is ready. Simulate a send to see its exposure summary.");
     $("demo-send").hidden = !!rules.matches.length;
-  } else if (await RedactModel.availability() === "available" && version === checkVersion) {
+  } else if (version === checkVersion) {
     $("check-prompt").disabled = true;
     showResult(text, rules, { pending: true });
     const result = await RedactModel.check(text);
@@ -187,8 +229,12 @@ async function runCheck() {
 function replaceDraft() {
   if (!lastReview || lastReview.text !== prompt.value) return;
   const before = lastReview.result.score;
-  const text = lastReview.result.rewritten;
-  const result = Redact.scan(text);
+  const plan = lastReview.plan;
+  const text = plan.text;
+  const prior = lastReview.result;
+  const contextual = plan.matches.filter(match => match.source === "context")
+    .map(match => ({ kind: match.kind, text: text.slice(match.start, match.end) }));
+  const result = { ...Redact.scan(text, contextual), contextual: prior.contextual, coverage: prior.coverage };
   setDraft(text, demo ? "FICTIONAL REWRITE" : "REVISED DRAFT");
   showResult(text, result, { replaced: true });
   if (demo) {
@@ -200,7 +246,7 @@ function replaceDraft() {
     prompt.focus({ preventScroll: true });
     $("draft-heading").scrollIntoView({ behavior: "smooth", block: "center" });
   }
-  notify("Draft replaced. Your original request is still there.");
+  notify("Selected details replaced. Review the draft before sharing.");
 }
 
 function seedHistory() {
@@ -547,6 +593,32 @@ function renderPolicies() {
 }
 
 async function showAi() {
+  if (desktop?.getAiStatus) {
+    const info = node("p", null, "Checking the local Ollama service…");
+    const actions = node("div", "dialog-actions");
+    const details = node("p", null, "When enabled, checking a draft sends up to 6,000 characters to Ollama at 127.0.0.1 on this computer. Redact requires cloud features disabled and a locally installed qwen3:4b model. This choice resets when Redact closes. It does not save your draft or enable device sync.");
+    openDialog("REDACT / DESKTOP CHECK ENGINE", "Contextual AI on this device", info, details, actions);
+    try {
+      const status = await desktop.getAiStatus();
+      info.textContent = status.reason;
+      if (status.state === "available" || status.state === "disabled") {
+        const enabled = status.state === "available";
+        const control = button(enabled ? "Disable contextual AI" : "Enable for this session", "primary-button", async () => {
+          control.disabled = true;
+          try {
+            const changed = await desktop.configureAi(!enabled);
+            resetReview();
+            info.textContent = changed.reason;
+            $("engine-status").lastChild.textContent = changed.state === "available" ? " Rules + local AI ready" : " Rules ready";
+            control.hidden = true;
+          } catch { info.textContent = "Local AI could not be configured. Rules remain available."; }
+          finally { control.disabled = false; }
+        });
+        actions.append(control);
+      }
+    } catch { info.textContent = "Local AI is unavailable. The rules scanner still works."; }
+    return;
+  }
   const info = node("p", null, "Checking this browser’s on-device model…");
   const actions = node("div", "dialog-actions");
   openDialog("REDACT / CHECK ENGINE", "Contextual AI", info, actions);
@@ -629,7 +701,7 @@ prompt.addEventListener("input", () => {
 });
 $("check-prompt").addEventListener("click", () => void runCheck());
 $("copy-rewrite").addEventListener("click", () => {
-  if (lastReview) void copy(lastReview.result.rewritten, "Rewrite copied.");
+  if (lastReview?.text === prompt.value) void copy(lastReview.plan.text, "Rewrite copied.");
 });
 $("replace-draft").addEventListener("click", replaceDraft);
 $("scoring-info").addEventListener("click", showScoring);
