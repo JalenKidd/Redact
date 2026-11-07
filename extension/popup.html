@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Redact settings</title>
+  <link rel="stylesheet" href="popup.css">
+  <script defer src="config.js"></script>
+  <script defer src="popup.js"></script>
+</head>
+<body>
+  <header><img src="icons/48.png" width="35" height="35" alt=""><div><strong>Redact</strong><small>ON-DEVICE PROMPT PRIVACY</small></div></header>
+  <main>
+    <p>Look for <b>Check with Redact</b> beside the ChatGPT composer.</p>
+    <section>
+      <label><span>Keep exposure history</span><input type="checkbox" id="history" disabled></label>
+      <p>Save scores and reason labels for observed ChatGPT sends. Prompt text stays out of history.</p>
+      <small id="status" role="status">Loading preferences…</small>
+    </section>
+    <a href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT ↗</a>
+    <a id="dashboard" target="_blank" rel="noopener">Open dashboard ↗</a>
+    <a id="local-dashboard" target="_blank" rel="noopener">Open local dashboard ↗</a>
+    <button type="button" id="clear" disabled>Clear local history</button>
+    <dialog id="confirm"><p>Clear all Redact exposure history on this browser?</p><form method="dialog"><button value="cancel">Cancel</button><button value="clear">Clear history</button></form></dialog>
+  </main>
+</body>
+</html>
