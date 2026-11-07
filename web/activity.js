@@ -10,6 +10,8 @@ globalThis.RedactActivity = Object.freeze({
     const messageTotal = document.getElementById("activity-message-total");
     const detailTotal = document.getElementById("activity-detail-total");
     const draftTotal = document.getElementById("activity-draft-total");
+    const overviewMessages = document.getElementById("overview-message-total");
+    const overviewDetails = document.getElementById("overview-detail-total");
     const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
     const number = new Intl.NumberFormat();
     const startedAt = Date.now();
@@ -48,13 +50,21 @@ globalThis.RedactActivity = Object.freeze({
       return mergeActivity({ events: mergeActivity(saved, session).events }, { events: remote.events }).events;
     }
 
+    function showTotal(element, total) {
+      const text = number.format(total);
+      if (element.textContent === text) return;
+      element.textContent = text;
+      if (element.getClientRects().length) RedactMotion.reveal(element);
+    }
+
     function render() {
       section.hidden = isDemo();
       const events = visible();
       const messages = events.filter(event => event.kind === "chat-sent");
-      messageTotal.textContent = number.format(messages.length);
-      detailTotal.textContent = number.format(messages.reduce((total, event) => total + event.count, 0));
-      draftTotal.textContent = number.format(events.length - messages.length);
+      const details = messages.reduce((total, event) => total + event.count, 0);
+      for (const element of [messageTotal, overviewMessages]) showTotal(element, messages.length);
+      for (const element of [detailTotal, overviewDetails]) showTotal(element, details);
+      showTotal(draftTotal, events.length - messages.length);
       clear.hidden = events.length === 0;
       list.hidden = events.length === 0;
       status.textContent = syncError ? "Alerts couldn’t sync. Redact will try again while it’s open."

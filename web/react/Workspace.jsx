@@ -1,5 +1,6 @@
 import { Catalog } from "./Catalog.jsx";
 import { VisibilityPreview } from "./VisibilityPreview.jsx";
+import { RouteHero } from "./RouteHero.jsx";
 
 function Welcome() {
   return (
@@ -43,122 +44,143 @@ function Navigation() {
 function OverviewPage() {
   return (
     <section id="overview-page" className="page" aria-labelledby="overview-heading" hidden>
-      <div className="page-heading"><div><div className="section-kicker">YOUR ACTIVITY</div><h1 id="overview-heading">Overview<span>.</span></h1><p>See what Redact finds in the checks you save.</p></div></div>
-      <section className="card simple-empty" id="overview-empty"><h2>Start with one prompt</h2><p>Check a draft and save the result to see your activity here.</p><a className="primary-button" href="#scan">Check a prompt <span aria-hidden="true">↗</span></a></section>
-      <section className="recent-panel card" id="overview-recent" aria-labelledby="recent-heading" hidden><div className="panel-header"><h2 id="recent-heading">Recent checks</h2><a className="text-button" href="#history">See history ↗</a></div><div id="recent-checks" className="recent-list"></div></section>
-      <details className="card disclosure" id="overview-trends" hidden>
-        <summary>View trends</summary>
-        <div className="disclosure-content">
-          <div id="overview-metrics" className="workspace-metrics"></div>
-          <div className="overview-grid">
-            <section className="activity-panel card" aria-labelledby="activity-heading"><div className="panel-header"><div><span className="tiny-label">LAST 7 DAYS</span><h2 id="activity-heading">Check activity</h2></div><span className="legend"><i></i> Checks <i></i> High exposure</span></div><div id="activity-chart" className="activity-chart"></div></section>
-            <section className="category-panel card" aria-labelledby="category-heading"><div className="panel-header"><h2 id="category-heading">Most common details</h2></div><div id="top-categories" className="category-list"></div></section>
+      <RouteHero route="overview" kicker="YOUR ACTIVITY" title="Overview" description="See what Redact finds in saved checks and how many details you’ve removed." />
+      <div id="overview-metrics" className="workspace-metrics" data-arrive></div>
+      <div className="overview-board">
+        <section className="activity-panel card" aria-labelledby="weekly-heading" data-arrive>
+          <div className="panel-header"><div><span className="tiny-label">LAST 7 DAYS</span><h2 id="weekly-heading">Check activity</h2></div><span className="legend"><i></i> Checks <i></i> High exposure</span></div>
+          <div id="activity-chart" className="activity-chart"></div>
+          <div id="overview-empty" className="overview-empty">
+            <p>Save a check to start seeing your weekly activity.</p><a className="text-button" href="#scan">Check a prompt ↗</a>
           </div>
-        </div>
-      </details>
+        </section>
+        <section className="usage-spotlight card" aria-labelledby="overview-usage-heading" id="overview-usage" data-arrive>
+          <div className="section-kicker">RECENT REDACTIONS</div>
+          <h2 id="overview-usage-heading">What stayed private</h2>
+          <dl className="overview-usage-totals">
+            <div><dt>Messages redacted</dt><dd id="overview-message-total">0</dd></div>
+            <div><dt>Details removed from sends</dt><dd id="overview-detail-total">0</dd></div>
+          </dl>
+          <a className="text-button" href="#history">See redaction activity ↗</a>
+        </section>
+        <section className="category-panel card" id="overview-categories" aria-labelledby="category-heading" data-arrive hidden><div className="panel-header"><h2 id="category-heading">Most common details</h2></div><div id="top-categories" className="category-list"></div></section>
+        <section className="recent-panel card" id="overview-recent" aria-labelledby="recent-heading" data-arrive hidden><div className="panel-header"><h2 id="recent-heading">Recent checks</h2><a className="text-button" href="#history">See history ↗</a></div><div id="recent-checks" className="recent-list"></div></section>
+      </div>
     </section>
   );
 }
 
 function CheckPage() {
   return (
-    <section id="scan-page" className="page" hidden>
-      <div className="page-heading scan-heading">
-        <div><div className="section-kicker">PROMPT CHECK</div><h1>Check a prompt<span>.</span></h1><p>See if your draft shares more than you intended.</p></div>
+    <section id="scan-page" className="page" aria-labelledby="scan-heading" hidden>
+      <RouteHero route="scan" kicker="ON-DEVICE SCAN" title="Check a prompt" description="Spot private details and see exactly what the AI would receive.">
         <ol className="scan-steps" aria-label="Check progress"><li id="draft-step" aria-current="step"><span>01</span> Draft</li><li id="review-step"><span>02</span> Review</li></ol>
-      </div>
+      </RouteHero>
       <div className="tool-destination" id="tool-destination" hidden><div id="selected-tool"></div><a className="text-button" href="#tools">Change tool</a></div>
       <div className="scan-stage">
-        <section className="editor-card card" aria-labelledby="draft-heading">
-          <div className="card-heading"><h2 id="draft-heading">Your draft</h2><button className="text-button sample-button" id="load-example">Try an example</button></div>
-          <label className="sr-only" htmlFor="prompt">Prompt to check</label>
-          <div className="editor-field"><div className="scan-light" aria-hidden="true"></div><textarea id="prompt" maxLength="20000" spellCheck="false" autoComplete="off" autoCorrect="off" placeholder="Type or paste what you plan to ask AI."></textarea><div className="draft-effect" id="draft-effect" aria-hidden="true" hidden></div></div>
-          <div className="editor-meta" id="char-limit" hidden><span id="char-count"></span></div>
-          <div className="editor-actions"><p className="local-note">Your draft stays on this device.</p><div className="check-actions"><button className="text-button" id="clear-draft" hidden>Clear</button><button className="primary-button" id="check-prompt">Check my prompt <span aria-hidden="true">↗</span></button></div></div>
-        </section>
+        <div className="check-draft-pane">
+          <section className="editor-card card" aria-labelledby="draft-heading" data-arrive>
+            <div className="card-heading"><h2 id="draft-heading">Your draft</h2><button className="text-button sample-button" id="load-example">Try an example</button></div>
+            <label className="sr-only" htmlFor="prompt">Prompt to check</label>
+            <div className="editor-field"><div className="scan-light" aria-hidden="true"></div><textarea id="prompt" maxLength="20000" spellCheck="false" autoComplete="off" autoCorrect="off" placeholder="Type or paste what you plan to ask AI."></textarea><div className="draft-effect" id="draft-effect" aria-hidden="true" hidden></div></div>
+            <div className="editor-meta" id="char-limit" hidden><span id="char-count"></span></div>
+            <div className="editor-actions"><p className="local-note"><span aria-hidden="true" /> Your draft stays on this device.</p><div className="check-actions"><button className="text-button" id="clear-draft" hidden>Clear</button><button className="primary-button" id="check-prompt">Check my prompt <span aria-hidden="true">↗</span></button></div></div>
+          </section>
+          <details className="scanner-options card disclosure">
+            <summary>Scanner settings</summary>
+            <div className="disclosure-content">
+              <div className="setting-links"><button className="text-button" id="enable-ai">Check contextual AI availability</button><span id="engine-status" role="status">Basic check ready</span></div>
+            </div>
+          </details>
+        </div>
 
         <section className="result-card card" id="check-result" aria-labelledby="result-heading" hidden>
           <div className="result-intro">
-          <div className="section-kicker">CHECK RESULT</div>
-          <h2 id="result-heading" tabIndex="-1"></h2>
-          <p id="result-summary"></p>
-          <ul className="result-labels" id="result-labels" aria-label="Types of details found"></ul>
-        </div>
-        <VisibilityPreview />
-        <section className="rewrite-card" id="rewrite-card" aria-label="Rewrite options" hidden>
-          <div className="rewrite-bottom"><div><button className="primary-button" id="copy-rewrite">Copy suggestion</button><button className="text-button" id="replace-draft">Replace draft</button></div></div>
-          <details className="disclosure result-disclosure" id="rewrite-options">
-            <summary>Choose what to keep</summary>
+            <div className="section-kicker">CHECK RESULT</div>
+            <h2 id="result-heading" tabIndex="-1"></h2>
+            <p id="result-summary"></p>
+            <ul className="result-labels" id="result-labels" aria-label="Types of details found"></ul>
+          </div>
+          <VisibilityPreview />
+          <section className="rewrite-card" id="rewrite-card" aria-label="Rewrite options" hidden>
+            <div className="rewrite-bottom"><div><button className="primary-button" id="copy-rewrite">Copy suggestion</button><button className="text-button" id="replace-draft">Replace draft</button></div></div>
+            <details className="disclosure result-disclosure" id="rewrite-options">
+              <summary>Choose what to keep</summary>
+              <div className="disclosure-content">
+                <fieldset className="rewrite-choices"><legend>Details in your draft</legend><p>Keep anything AI needs to answer your question.</p><div id="rewrite-choices"></div></fieldset>
+                <div id="rewrite-comparison" className="rewrite-comparison" role="status"></div>
+              </div>
+            </details>
+          </section>
+          <div className="result-actions" id="result-actions" hidden>
+            <button className="primary-button" id="copy-draft" hidden>Copy draft</button>
+            <a className="text-button" id="open-destination" target="_blank" rel="noopener noreferrer" hidden></a>
+          </div>
+          <details className="score-card disclosure result-disclosure" id="score-details">
+            <summary>See score and reasons</summary>
             <div className="disclosure-content">
-              <fieldset className="rewrite-choices"><legend>Details in your draft</legend><p>Keep anything AI needs to answer your question.</p><div id="rewrite-choices"></div></fieldset>
-              <div id="rewrite-comparison" className="rewrite-comparison" role="status"></div>
+            <div className="score-summary"><div className="score-ring" id="score-ring"><svg className="score-track" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54" pathLength="100" className="score-track-base"/><circle cx="60" cy="60" r="54" pathLength="100" className="score-track-value" id="score-track-value"/></svg><div><strong id="score-value">—</strong><span>OUT OF 100</span></div></div><div className="score-caption"><span className="score-badge" id="score-rating">Ready when you are</span><p id="score-description">Check your draft to see<br />what it could reveal.</p></div></div>
+            <div id="findings" className="findings"></div>
+            <button className="text-button score-help" id="scoring-info">How the score works</button>
             </div>
           </details>
+          <button className="text-button save-result" id="save-check" hidden>Save check</button>
         </section>
-        <div className="result-actions" id="result-actions" hidden>
-          <button className="primary-button" id="copy-draft" hidden>Copy draft</button>
-          <a className="text-button" id="open-destination" target="_blank" rel="noopener noreferrer" hidden></a>
-        </div>
-        <details className="score-card disclosure result-disclosure" id="score-details">
-          <summary>See score and reasons</summary>
-          <div className="disclosure-content">
-          <div className="score-summary"><div className="score-ring" id="score-ring"><svg className="score-track" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54" pathLength="100" className="score-track-base"/><circle cx="60" cy="60" r="54" pathLength="100" className="score-track-value" id="score-track-value"/></svg><div><strong id="score-value">—</strong><span>OUT OF 100</span></div></div><div className="score-caption"><span className="score-badge" id="score-rating">Ready when you are</span><p id="score-description">Check your draft to see<br />what it could reveal.</p></div></div>
-          <div id="findings" className="findings"></div>
-          <button className="text-button score-help" id="scoring-info">How the score works</button>
+        <aside className="check-examples card" aria-labelledby="example-heading" data-arrive>
+          <div className="section-kicker">FICTIONAL EXAMPLES</div>
+          <h2 id="example-heading">Start with a sample</h2>
+          <p>Load a draft to see how Redact handles details you might miss.</p>
+          <div className="scenario-grid">
+            <button type="button" data-example="job"><span className="scenario-icon" aria-hidden="true">⌑</span><span><strong>Job application</strong><small>Email and phone number</small></span><span aria-hidden="true">↗</span></button>
+            <button type="button" data-example="support"><span className="scenario-icon" aria-hidden="true">◈</span><span><strong>Support request</strong><small>Test key and account email</small></span><span aria-hidden="true">↗</span></button>
           </div>
-        </details>
-        <button className="text-button save-result" id="save-check" hidden>Save check</button>
-        </section>
+        </aside>
       </div>
 
       <div id="demo-send" className="demo-send" hidden><div><strong>Your draft is ready for a practice send.</strong><p>Save a fictional exposure summary to the demo history.</p></div><button className="primary-button" id="simulate-send">Simulate send →</button></div>
 
-      <details className="scanner-options disclosure">
-        <summary>More examples and settings</summary>
-        <div className="disclosure-content">
-          <div className="scenario-grid"><button data-example="job"><span className="scenario-icon">⌑</span><span><strong>Job application</strong><small>Personal email and phone</small></span><span aria-hidden="true">↗</span></button><button data-example="support"><span className="scenario-icon">◈</span><span><strong>Support request</strong><small>Test key and account email</small></span><span aria-hidden="true">↗</span></button></div>
-          <div className="setting-links"><button className="text-button" id="enable-ai">Check contextual AI availability</button><span id="engine-status" role="status">Basic check ready</span></div>
-        </div>
-      </details>
     </section>
   );
 }
 
 function HistoryPage() {
   return (
-    <section id="history-page" className="page" hidden>
-      <div className="page-heading"><div><div className="section-kicker">SAVED CHECKS</div><h1>History<span>.</span></h1><p>Find the checks you’ve saved.</p></div></div>
-      <section className="card redaction-activity" id="redaction-activity" aria-labelledby="activity-heading">
-        <div className="activity-heading"><div><div className="section-kicker">USAGE</div><h2 id="activity-heading">Redaction activity</h2></div>
-          <button type="button" className="text-button" id="activity-clear" hidden>Clear alerts</button></div>
-        <dl className="activity-totals" aria-label="Usage across recent redaction alerts">
-          <div><dt>Messages redacted</dt><dd id="activity-message-total">0</dd></div>
-          <div><dt>Details removed from messages</dt><dd id="activity-detail-total">0</dd></div>
-          <div><dt>Drafts redacted in Redact</dt><dd id="activity-draft-total">0</dd></div>
-        </dl>
-        <p id="activity-status">Redactions will appear here when you apply them.</p>
-        <ul id="activity-items" className="activity-items" hidden></ul>
-        <details className="activity-settings">
-          <summary>Alert settings</summary>
-          <label><input type="checkbox" id="activity-keep" /> Keep redaction alerts</label>
-          <p>Save what happened, the provider, the time, and the number of details replaced. If you pair devices, those alerts sync encrypted. Prompt text stays on your device.</p>
-          <p>To sync ChatGPT usage, copy a pairing code from <a href="#devices">Devices</a> and paste it into <strong>Sync Chrome usage</strong> in the Redact extension. Chrome can sync while this dashboard is closed.</p>
-          <p>Change Off, Manual, or Auto for ChatGPT in the extension popup.</p>
+    <section id="history-page" className="page" aria-labelledby="history-heading" hidden>
+      <RouteHero route="history" kicker="PRIVATE ACTIVITY" title="History" description="See what you’ve redacted and revisit the checks you chose to save." />
+      <div className="history-board">
+        <section className="card redaction-activity" id="redaction-activity" aria-labelledby="activity-heading" data-arrive>
+          <div className="activity-heading"><div><div className="section-kicker">USAGE</div><h2 id="activity-heading">Redaction activity</h2></div>
+            <button type="button" className="text-button" id="activity-clear" hidden>Clear alerts</button></div>
+          <dl className="activity-totals" aria-label="Usage across recent redaction alerts">
+            <div><dt>Messages redacted</dt><dd id="activity-message-total">0</dd></div>
+            <div><dt>Details removed from messages</dt><dd id="activity-detail-total">0</dd></div>
+            <div><dt>Drafts redacted in Redact</dt><dd id="activity-draft-total">0</dd></div>
+          </dl>
+          <p id="activity-status">Redactions will appear here when you apply them.</p>
+          <ul id="activity-items" className="activity-items" hidden></ul>
+          <details className="activity-settings">
+            <summary>Alert settings</summary>
+            <label><input type="checkbox" id="activity-keep" /> Keep redaction alerts</label>
+            <p>Save what happened, the provider, the time, and the number of details replaced. If you pair devices, those alerts sync encrypted. Prompt text stays on your device.</p>
+            <p>To sync ChatGPT usage, copy a pairing code from <a href="#devices">Devices</a> and paste it into <strong>Sync Chrome usage</strong> in the Redact extension. Chrome can sync while this dashboard is closed.</p>
+            <p>Change Off, Manual, or Auto for ChatGPT in the extension popup.</p>
+          </details>
+        </section>
+        <section className="card history-card" aria-labelledby="saved-checks-heading" data-arrive>
+          <div className="panel-header"><div><span className="section-kicker">EXPOSURE LOG</span><h2 id="saved-checks-heading">Saved checks</h2></div><span className="history-log-icon" aria-hidden="true">▤</span></div>
+          <div id="history-content"></div>
+        <details className="disclosure" id="history-options">
+          <summary>History settings and filters</summary>
+          <div className="disclosure-content">
+            <p id="history-source" className="history-source"></p>
+            <div className="history-tools" id="history-filters" hidden><label htmlFor="history-filter">Show</label><select id="history-filter"><option value="all">All checks</option><option value="high">Higher scores (50+)</option><option value="low">Scores under 50</option></select><label htmlFor="history-sort">Sort by</label><select id="history-sort"><option value="recent">Most recent</option><option value="score">Highest score</option></select></div>
+            <div className="setting-links"><button className="text-button" id="desktop-history-settings">History settings</button><button className="text-button" id="refresh-history">Refresh history</button></div>
+          </div>
         </details>
-      </section>
-      <section className="card history-card" aria-label="Saved checks">
-        <div id="history-content"></div>
-      </section>
-      <details className="card disclosure" id="history-options">
-        <summary>History settings and filters</summary>
-        <div className="disclosure-content">
-          <p id="history-source" className="history-source"></p>
-          <div className="history-tools" id="history-filters" hidden><label htmlFor="history-filter">Show</label><select id="history-filter"><option value="all">All checks</option><option value="high">Higher scores (50+)</option><option value="low">Scores under 50</option></select><label htmlFor="history-sort">Sort by</label><select id="history-sort"><option value="recent">Most recent</option><option value="score">Highest score</option></select></div>
-          <div className="setting-links"><button className="text-button" id="desktop-history-settings">History settings</button><button className="text-button" id="refresh-history">Refresh history</button></div>
-        </div>
-      </details>
-      <details className="card disclosure import-workspace" id="history-import">
-        <summary>Import past ChatGPT conversations</summary>
+        </section>
+      </div>
+      <details className="card disclosure import-workspace" id="history-import" data-arrive>
+        <summary><span className="history-import-icon" aria-hidden="true" />Import past ChatGPT conversations</summary>
         <div className="import-body">
           <p>Choose the conversation files from your ChatGPT export. Redact checks them here and clears the results when you close or reload this window.</p>
           <details className="disclosure"><summary>File limits and privacy</summary><p className="import-help">Select up to 20 JSON files (16 MB total). Text is checked on this device. Attachments are skipped. Imported chats don’t sync.</p></details>

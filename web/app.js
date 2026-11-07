@@ -492,15 +492,15 @@ function renderHistory() {
   const visible = summaries.filter(summary => filter === "all" || (filter === "high") === (summary.score >= 50));
   visible.sort((first, second) => (sort === "score" ? second.score - first.score : 0) || second.timestamp - first.timestamp);
   if (!visible.length) {
-    const empty = node("div", "simple-empty");
+    const empty = node("div", "simple-empty history-empty");
     if (summaries.length) {
-      empty.append(node("h2", null, "No matches"), node("p", null, "Change the filter to see more checks."));
+      empty.append(node("h3", null, "No matches"), node("p", null, "Change the filter to see more checks."));
     } else if (liveHistory.state === "loading") {
       empty.append(node("p", null, "Loading your saved checks…"));
     } else {
       const check = node("a", "primary-button", "Check a prompt");
       check.href = "#scan";
-      empty.append(node("h2", null, "No saved checks yet"), node("p", null, "After you check a prompt, choose Save check to find it here later."), check);
+      empty.append(node("h3", null, "No saved checks yet"), node("p", null, "After you check a prompt, choose Save check to find it here later."), check);
     }
     content.append(empty);
     return;
@@ -899,6 +899,7 @@ function renderRoute(route, animate = true) {
   if (animate && previous !== route) {
     const order = Object.keys(routeNames);
     motion.page($(route + "-page"), order.indexOf(route) > order.indexOf(previous) ? 1 : -1);
+    motion.arrive($(route + "-page"));
   }
   if (demo) $("demo-instruction").textContent = demo.instructions[route];
   if (route === "scan" && focusDraftOnScan) {
@@ -1001,8 +1002,12 @@ $("refresh-history").addEventListener("click", async () => {
   notify(demo ? "Rehearsal history refreshed." : liveHistory.state === "connected" ? "Local history refreshed." :
     desktop ? "Desktop history could not load." : "Redact extension is not connected.");
 });
-$("history-sort").addEventListener("change", renderHistory);
-$("history-filter").addEventListener("change", renderHistory);
+for (const id of ["history-sort", "history-filter"]) {
+  $(id).addEventListener("change", () => {
+    renderHistory();
+    motion.stagger($("history-content").querySelectorAll(".saved-checks > li, .history-empty"));
+  });
+}
 window.addEventListener("hashchange", () => {
   if (location.hash === "#main") return;
   motion.switchPage(activeRoute, routeFromHash(), routeNames, renderRoute);

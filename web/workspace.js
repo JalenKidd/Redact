@@ -37,11 +37,8 @@
     if (keys === metricKey) return;
     metricKey = keys;
     $("overview-empty").hidden = summaries.length > 0;
-    $("overview-recent").hidden = $("overview-trends").hidden = !summaries.length;
-    if (!summaries.length) {
-      $("overview-trends").open = false;
-      return;
-    }
+    $("overview-recent").hidden = $("overview-categories").hidden = !summaries.length;
+    $("overview-usage").hidden = Boolean(demo);
     const highs = summaries.filter(summary => summary.score >= 50).length;
     const average = summaries.length ? Math.round(summaries.reduce((sum, item) => sum + item.score, 0) / summaries.length) : "—";
     $("overview-metrics").replaceChildren(
@@ -66,13 +63,14 @@
     const maximum = Math.max(1, ...bins.map(bin => bin.count));
     const chart = $("activity-chart");
     chart.replaceChildren();
-    for (const bin of bins) {
+    for (const [index, bin] of bins.entries()) {
       const bar = node("div", "activity-column");
+      bar.style.setProperty("--bar-index", index);
       bar.setAttribute("aria-label", date.format(bin.day) + ": " + bin.count + " checks, " + bin.high + " high exposure");
       bar.title = date.format(bin.day) + " · " + bin.count + " checks";
       const track = node("div", "activity-track");
       const value = node("span", "activity-value");
-      value.style.height = Math.max(3, bin.count / maximum * 100) + "%";
+      value.style.height = bin.count / maximum * 100 + "%";
       const high = node("i", "activity-high");
       high.style.height = (bin.count ? bin.high / bin.count * 100 : 0) + "%";
       value.append(high);
@@ -314,10 +312,10 @@
   for (const control of document.querySelectorAll("[data-example]")) {
     control.addEventListener("click", () => {
       setDraft(examples[control.dataset.example]);
-      control.closest("details").open = false;
       $("demo-send").hidden = true;
       if (demo) updateDemo("01 / Check this fictional draft before sharing it with AI.");
       prompt.focus();
+      motion.reveal(prompt.parentElement);
     });
   }
   modal.addEventListener("close", () => clearInterval(invitationTimer));

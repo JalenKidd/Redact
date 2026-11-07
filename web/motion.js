@@ -34,6 +34,7 @@
       if (version !== routeVersion) return;
       render(to, animate);
       window.scrollTo(0, 0);
+      if (!animate) arrive(document.getElementById(to + "-page"));
     };
     const root = document.documentElement;
     if (from === to || reduced() || !document.startViewTransition) {
@@ -62,6 +63,20 @@
       { opacity: 0, transform: "translate(" + direction * 12 + "px, 5px)" },
       { opacity: 1, transform: "none" },
     ], { duration: 290, easing: spring });
+  }
+
+  function stagger(elements) {
+    if (reduced()) return;
+    [...elements].filter(element => element.getClientRects().length).slice(0, 7).forEach((element, index) => {
+      element.animate([
+        { opacity: .45, transform: "translateY(11px)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 355, delay: index * 38, fill: "backwards", easing: spring });
+    });
+  }
+
+  function arrive(element) {
+    stagger(element.querySelectorAll("[data-arrive]"));
   }
 
   function score(target) {
@@ -101,7 +116,7 @@
       { opacity: 1, offset: .2 },
       { opacity: .8, offset: .78 },
       { opacity: 0, transform: "translateY(" + line.parentElement.clientHeight + "px)" },
-    ], { duration: 340, easing: "ease-in-out" });
+    ], { duration: 460, easing: "ease-in-out" });
     await sweep.finished.catch(() => {});
   }
 
@@ -170,5 +185,5 @@
     });
   }
 
-  globalThis.RedactMotion = Object.freeze({ reduced, reveal, page, navigation, switchPage, score, resetScore, scan, profile, revealTokens, redact, applied, findings });
+  globalThis.RedactMotion = Object.freeze({ reduced, reveal, page, arrive, stagger, navigation, switchPage, score, resetScore, scan, profile, revealTokens, redact, applied, findings });
 })();

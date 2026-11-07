@@ -104,7 +104,7 @@ try {
   await page.locator("#prompt").fill("A new draft without the old email");
   await page.evaluate(() => { window.finishStaleCheck(); window.RedactModel = window.savedModel; });
   assert.equal(await page.locator("#score-value").innerText(), "—");
-  await page.getByText("More examples and settings", { exact: true }).click();
+  await page.getByText("Scanner settings", { exact: true }).click();
   await page.getByRole("button", { name: /Check contextual AI availability/ }).click();
   await page.waitForFunction(() => !document.querySelector("#modal-content p")?.textContent.includes("Checking the local"));
   assert.match(await page.locator("#modal-content").innerText(), /Ollama|local model/);
