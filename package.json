@@ -13,7 +13,8 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "test:desktop": "npm run build && node scripts/desktop-smoke.mjs",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test:import": "npm run build && node scripts/history-import-smoke.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

@@ -397,6 +397,7 @@ function stat(label, value, description) {
 }
 
 function renderHistory() {
+  $("history-import").hidden = Boolean(demo);
   const summaries = visibleSummaries();
   const source = $("history-source");
   const content = $("history-content");
@@ -821,6 +822,12 @@ window.addEventListener("focus", () => {
   if (!demo) void refreshHistory();
 });
 
+RedactHistoryUI.init({ openDialog, openDraft: text => {
+  if (demo) endDemo();
+  setDraft(text, "IMPORTED USER PROMPT");
+  navigate("scan");
+  prompt.focus({ preventScroll: true });
+} });
 renderPolicies();
 if (desktop) {
   document.body.classList.add("desktop-app");

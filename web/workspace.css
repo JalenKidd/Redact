@@ -164,6 +164,9 @@ body[data-appearance="midnight"] .metric-icon { border-color: #ffffff27; backgro
 .rehearsing #workspace .scan-heading p, .rehearsing #workspace .scanner-metrics, .rehearsing #workspace .quick-starts { display: none; }
 .rehearsing #workspace textarea { height: 128px; }
 #workspace .history-source { background: var(--work-field); border-color: var(--work-line); color: var(--work-muted); margin: 14px 0; }
+#workspace .import-body > p, #workspace .import-help, #workspace .import-filters label { color: var(--work-muted); }
+#workspace .import-selection { border-color: var(--work-line); }
+#workspace .import-body .import-warning { color: var(--work-accent); }
 #workspace .history-stats { margin-bottom: 14px; }
 #workspace .stat { background: var(--work-card); border-color: var(--work-line); padding: 15px 17px; }
 #workspace .stat-value, #workspace .history-empty h3, #workspace .provider-title h2 { color: var(--work-ink); }
