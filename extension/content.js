@@ -63,7 +63,8 @@
   const context = root.querySelector(".chat-context");
   const sendAlert = root.querySelector(".send-alert");
 
-  const turnSelector = '[data-message-author-role="user"]';
+  const turnSelector = '[data-message-author-role="user"], [data-user-message-bubble="true"]';
+  const userTurns = () => [...document.querySelectorAll(turnSelector)].filter(turn => !turn.parentElement.closest(turnSelector));
   const seenTurns = new WeakSet();
   let composer = null;
   let review = null;
@@ -83,7 +84,11 @@
   }
 
   function draftComposer() {
-    return document.querySelector('#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="prompt-textarea"]');
+    return document.querySelector([
+      '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="prompt-textarea"]',
+      'form[data-mobile-composer] textarea[data-mobile-composer-prompt]',
+      '[data-composer-surface-variant="default"] [contenteditable="true"][data-composer-markdown]',
+    ].join(", "));
   }
 
   function setPanel(open) {
@@ -124,7 +129,7 @@
     const text = read(current);
     const version = ++scanVersion;
     setPanel(true);
-    const earlier = document.querySelectorAll(turnSelector).length;
+    const earlier = userTurns().length;
     context.textContent = (earlier ? "Earlier messages from you visible in this chat: " + earlier + ". " : "") +
       "ChatGPT may also have uploads or memory. This check covers the draft text.";
     if (text.length > Redact.maxLength) {
@@ -230,7 +235,7 @@
     if (!historyEnabled && !redactedCount) return;
     if (staged?.normalized === normalized && staged.composer === composer) return;
     clearStaged();
-    for (const turn of document.querySelectorAll(turnSelector)) seenTurns.add(turn);
+    for (const turn of userTurns()) seenTurns.add(turn);
     staged = {
       composer,
       normalized,
@@ -248,8 +253,12 @@
   }, true);
 
   document.addEventListener("click", event => {
-    const button = event.target.closest?.('button[data-testid="send-button"], button#composer-submit-button[aria-label="Send prompt"]');
-    if (button && !button.disabled) stage();
+    const button = event.target.closest?.([
+      'button[data-testid="send-button"], button#composer-submit-button[aria-label="Send prompt"]',
+      'button[data-composer-submit][data-send-label]',
+      'form[data-chatgpt-composer] button[type="submit"]',
+    ].join(", "));
+    if (button && !button.disabled && (!button.dataset.sendLabel || button.getAttribute("aria-label") === button.dataset.sendLabel)) stage();
   }, true);
   document.addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
@@ -269,14 +278,14 @@
       setPanel(false);
     }
     if (composer) {
-      const anchor = composer.closest("form") || composer.parentElement;
+      const anchor = composer.closest('form, [data-composer-surface-variant="default"]') || composer.parentElement;
       if (anchor && anchor.previousElementSibling !== host) anchor.before(host);
     } else {
       host.remove();
     }
     // A send attempt only becomes a history entry when a matching user turn appears.
     if (!staged) return;
-    for (const turn of document.querySelectorAll(turnSelector)) {
+    for (const turn of userTurns()) {
       if (seenTurns.has(turn)) continue;
       const content = turn.querySelector(".whitespace-pre-wrap, [data-message-content]") || turn;
       const normalized = normalize(read(content));
