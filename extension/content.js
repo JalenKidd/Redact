@@ -13,6 +13,7 @@
     button:disabled { opacity: .55; cursor: default; }
     .launch { border: 1px solid #5d5549; border-radius: 9px; background: #22211e; color: #fffaf0; padding: 6px 12px; display: flex; align-items: center; gap: 7px; font-weight: 650; }
     .mark { color: #ff704f; font-size: 14px; line-height: 1; }
+    .auto-state { border-left: 1px solid #7d786f; padding-left: 7px; color: #c6edd0; font-size: 11px; font-weight: 550; }
     .panel { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 2147483647; width: min(360px, 86vw); max-height: min(460px, 57vh); overflow: auto; border: 1px solid #ded9cd; border-radius: 16px; padding: 16px; background: #fffefa; box-shadow: 0 16px 52px #15110c44; }
     .panel:not([hidden]) { animation: redact-panel .22s cubic-bezier(.2,.74,.26,1) both; }
     @keyframes redact-panel { from { opacity: 0; transform: translateY(7px); } }
@@ -35,7 +36,7 @@
   const wrap = document.createElement("div");
   wrap.className = "wrap";
   wrap.innerHTML = `
-    <button type="button" class="launch" aria-expanded="false" aria-controls="redact-panel"><span class="mark" aria-hidden="true">▰</span> Check with Redact</button>
+    <button type="button" class="launch" aria-label="Check with Redact" aria-expanded="false" aria-controls="redact-panel"><span class="mark" aria-hidden="true">▰</span> Check with Redact <span class="auto-state">Auto loading</span></button>
     <div class="send-alert" role="status" hidden></div>
     <section class="panel" id="redact-panel" aria-label="Redact exposure check" hidden>
       <div class="top"><span class="eyebrow">REDACT / DRAFT CHECK</span><button class="close" type="button" aria-label="Close draft check">×</button></div>
@@ -62,18 +63,26 @@
   const enable = root.querySelector(".enable");
   const context = root.querySelector(".chat-context");
   const sendAlert = root.querySelector(".send-alert");
+  const autoState = root.querySelector(".auto-state");
 
   const turnSelector = '[data-message-author-role="user"], [data-user-message-bubble="true"]';
   const userTurns = () => [...document.querySelectorAll(turnSelector)].filter(turn => !turn.parentElement.closest(turnSelector));
+  const sendSelector = [
+    'button[data-testid="send-button"], button#composer-submit-button[aria-label="Send prompt"]',
+    'button[data-composer-submit][data-send-label]',
+    'form[data-chatgpt-composer] button[type="submit"]',
+  ].join(", ");
   const seenTurns = new WeakSet();
   let composer = null;
   let review = null;
   let scanVersion = 0;
   let historyEnabled = false;
+  let autoRedact = null;
   let staged = null;
   let expiry;
   let appliedRedaction = null;
   let alertTimer;
+  let pendingSend = false;
 
   function read(element) {
     return element instanceof HTMLTextAreaElement ? element.value : element?.innerText || "";
@@ -189,6 +198,25 @@
     }
   });
 
+  function applyRedaction(editor, result) {
+    const replacement = result.rewritten;
+    editor.focus();
+    if (editor instanceof HTMLTextAreaElement) {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(editor, replacement);
+      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText", data: replacement }));
+    } else {
+      const selection = getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("insertText", false, replacement);
+    }
+    if (normalize(read(editor)) !== normalize(replacement)) return false;
+    appliedRedaction = { composer: editor, normalized: normalize(replacement), count: result.matches.length };
+    return true;
+  }
+
   replace.addEventListener("click", () => {
     if (!review || composer !== review.original || read(composer) !== review.text) {
       status.textContent = "The draft changed. Close and run a fresh check.";
@@ -196,21 +224,7 @@
       return;
     }
     const replacement = review.result.rewritten;
-    const count = review.result.matches.length;
-    composer.focus();
-    if (composer instanceof HTMLTextAreaElement) {
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(composer, replacement);
-      composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertReplacementText", data: replacement }));
-    } else {
-      const selection = getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(composer);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      document.execCommand("insertText", false, replacement);
-    }
-    appliedRedaction = { composer, normalized: normalize(replacement), count };
-    if (normalize(read(composer)) !== normalize(replacement)) {
+    if (!applyRedaction(composer, review.result)) {
       status.textContent = "Could not update the composer. You can copy the suggested draft above.";
       return;
     }
@@ -225,7 +239,7 @@
     staged = null;
   }
 
-  function stage() {
+  function stage(result) {
     if (!composer?.isConnected) return;
     const text = read(composer);
     if (text.length > Redact.maxLength) return;
@@ -240,10 +254,86 @@
       composer,
       normalized,
       redactedCount,
-      kinds: (review?.text === text && review.original === composer ? review.result : Redact.scan(text))
+      kinds: (result || (review?.text === text && review.original === composer ? review.result : Redact.scan(text)))
         .reasons.map(reason => reason.kind),
     };
     expiry = setTimeout(clearStaged, 12_000);
+  }
+
+  function alert(message) {
+    sendAlert.textContent = message;
+    sendAlert.hidden = false;
+    clearTimeout(alertTimer);
+    alertTimer = setTimeout(() => { sendAlert.hidden = true; }, 6000);
+  }
+
+  function canSend(button) {
+    return button?.isConnected && !button.disabled && button.getAttribute("aria-disabled") !== "true" &&
+      (!button.dataset.sendLabel || button.getAttribute("aria-label") === button.dataset.sendLabel) &&
+      (!button.form || button.form.contains(composer));
+  }
+
+  function sendButton() {
+    return [...document.querySelectorAll(sendSelector)].find(canSend);
+  }
+
+  function handleSend(event, retry) {
+    if (!composer?.isConnected || event.defaultPrevented) return;
+    const text = read(composer);
+    if (!text.trim()) return;
+    const pause = () => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    if (pendingSend) {
+      pause();
+      return;
+    }
+    if (autoRedact === false) {
+      stage();
+      return;
+    }
+    if (autoRedact === null || text.length > Redact.maxLength) {
+      pause();
+      alert(autoRedact === null ? "Redact settings are loading. Try Send again." :
+        "Auto-redact paused this send. Shorten your draft to 20,000 characters or fewer.");
+      return;
+    }
+    const result = Redact.scan(text);
+    if (!result.matches.length) {
+      stage(result);
+      return;
+    }
+
+    pause();
+    const editor = composer;
+    if (editor.querySelector('a, img, video, audio, table, pre, code, strong, em, ol, ul, blockquote, [contenteditable="false"]')) {
+      alert("Auto-redact paused this formatted draft. Open Check with Redact to review the suggested text.");
+      return;
+    }
+    clearStaged();
+    pendingSend = true;
+    try {
+      if (!applyRedaction(editor, result)) throw new Error("Composer did not accept the replacement.");
+    } catch {
+      pendingSend = false;
+      alert("Redact paused this send. Check the draft and try again.");
+      return;
+    }
+    ++scanVersion;
+    review = null;
+    setPanel(false);
+    // Resume in a new event, after the editor has handled the replacement.
+    setTimeout(() => {
+      pendingSend = false;
+      const updated = read(editor);
+      if (composer !== editor || !editor.isConnected || updated.length > Redact.maxLength ||
+          normalize(updated) !== normalize(result.rewritten) || Redact.scan(updated).matches.length) {
+        alert("Redact paused this send. Review the updated draft and try again.");
+        return;
+      }
+      if (!retry()) alert("Draft redacted. Press Send to continue.");
+    }, 0);
   }
 
   document.addEventListener("input", event => {
@@ -253,19 +343,38 @@
   }, true);
 
   document.addEventListener("click", event => {
-    const button = event.target.closest?.([
-      'button[data-testid="send-button"], button#composer-submit-button[aria-label="Send prompt"]',
-      'button[data-composer-submit][data-send-label]',
-      'form[data-chatgpt-composer] button[type="submit"]',
-    ].join(", "));
-    if (button && !button.disabled && (!button.dataset.sendLabel || button.getAttribute("aria-label") === button.dataset.sendLabel)) stage();
+    const button = event.target.closest?.(sendSelector);
+    if (!canSend(button)) return;
+    handleSend(event, () => {
+      const control = canSend(button) ? button : sendButton();
+      if (!control) return false;
+      control.click();
+      return true;
+    });
   }, true);
   document.addEventListener("keydown", event => {
-    if (event.key === "Enter" && !event.shiftKey && !event.altKey && !event.ctrlKey &&
-        !event.metaKey && !event.isComposing && !event.defaultPrevented && composer?.contains(event.target)) stage();
+    if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
+        event.isComposing || event.keyCode === 229 || !composer?.contains(event.target)) return;
+    if (composer instanceof HTMLTextAreaElement || !sendButton() || composer.getAttribute("aria-expanded") === "true") {
+      stage();
+      return;
+    }
+    handleSend(event, () => {
+      const control = sendButton();
+      if (!control) return false;
+      control.click();
+      return true;
+    });
   }, true);
   document.addEventListener("submit", event => {
-    if (event.target.contains?.(composer)) stage();
+    if (!event.target.contains?.(composer)) return;
+    const form = event.target;
+    handleSend(event, () => {
+      if (!form.isConnected || !form.contains(composer)) return false;
+      if (event.submitter && event.submitter.form !== form) return false;
+      form.requestSubmit(event.submitter || undefined);
+      return true;
+    });
   }, true);
 
   function sync() {
@@ -299,10 +408,7 @@
       setPanel(false);
       appliedRedaction = null;
       if (redactedCount) {
-        sendAlert.textContent = "Redacted message sent · " + redactedCount + (redactedCount === 1 ? " private detail replaced" : " private details replaced");
-        sendAlert.hidden = false;
-        clearTimeout(alertTimer);
-        alertTimer = setTimeout(() => { sendAlert.hidden = true; }, 5000);
+        alert("Redacted message sent · " + redactedCount + (redactedCount === 1 ? " private detail replaced" : " private details replaced"));
       }
       if (historyEnabled) void chrome.runtime.sendMessage({ type: "REDACT_LOG", kinds, redactedCount }).catch(() => {});
       break;
@@ -312,15 +418,27 @@
   sync();
   new MutationObserver(sync).observe(document.body, { subtree: true, childList: true, characterData: true });
 
-  let settingsChanged = false;
+  function setAutoRedact(enabled) {
+    autoRedact = enabled;
+    autoState.textContent = enabled ? "Auto on" : "Auto off";
+    launch.setAttribute("aria-label", "Check with Redact. Auto-redact " + (enabled ? "on" : "off"));
+  }
+
+  let historyChanged = false;
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.enabled) {
-      settingsChanged = true;
+    if (area !== "local") return;
+    if (changes.autoRedact) setAutoRedact(changes.autoRedact.newValue !== false);
+    if (changes.enabled) {
+      historyChanged = true;
       historyEnabled = changes.enabled.newValue === true;
       if (!historyEnabled && !staged?.redactedCount) clearStaged();
     }
   });
   void chrome.runtime.sendMessage({ type: "REDACT_PREFERENCES" }).then(result => {
-    if (!settingsChanged) historyEnabled = result?.enabled === true;
-  }).catch(() => {});
+    if (!historyChanged) historyEnabled = result?.enabled === true;
+    if (autoRedact === null && result && !result.error) setAutoRedact(result.autoRedact !== false);
+    if (autoRedact === null) autoState.textContent = "Auto unavailable";
+  }).catch(() => {
+    autoState.textContent = "Auto unavailable";
+  });
 })();

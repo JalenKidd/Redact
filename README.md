@@ -71,6 +71,8 @@ Linked devices sync while Redact is open. **Sync now** refreshes immediately. Ch
 
 ## Redaction alerts
 
+In Chrome, **Auto-redact before sending** is on by default. Press **Send** in ChatGPT and Redact replaces detected private details in supported text drafts before the message goes out. The extension popup lets you turn this off, and **Check with Redact** is still available for a preview. Auto-redaction uses local rules. For a formatted draft it cannot safely replace, Redact pauses the send for review.
+
 **Replace draft** shows a **Draft redacted** notification and adds a session alert under **History → Redaction activity**. The Chrome extension shows **Redacted message sent** in ChatGPT when the unchanged replacement appears as a new user message after a send attempt. For those alerts in the dashboard, enable **Keep exposure history** in the extension and **Keep redaction alerts** in the dashboard, then keep Redact open in the same Chrome profile.
 
 With **Keep redaction alerts** on, Redact saves the provider, event type, time, and number of details replaced. Paired devices exchange these alerts encrypted, separately from saved check history. You can clear recent alerts from **Redaction activity**. Drafts and messages stay on the device. Web and desktop draft alerts report an edit, since Redact does not observe what you paste into another app.
@@ -126,9 +128,9 @@ The local web server also runs the pairing API with SQLite. Use `REDACT_SYNC_URL
 | Time | What to show | What to say |
 | --- | --- | --- |
 | 0–15s | Open a fresh ChatGPT tab with the fictional draft below. | “I need help writing an email to my professor. I’m about to share two details the AI doesn’t need.” |
-| 15–35s | Click **Check with Redact**. Point to the phone number and student ID, then the **50/100** rules score. | “This check runs on my device. Each category has a fixed weight, so I can see exactly where the score comes from.” |
-| 35–55s | Click **Replace draft**. Point to the same email request and the two placeholders. Send the revised fictional draft. | “My request still makes sense. I can review the draft and decide when to send it.” |
-| 55–70s | Open **History**. Point to the new 0-point summary. | “I opted into history. Redact saved the date, provider, score, and reason labels in this browser. The original words stayed out of the history.” |
+| 15–35s | Point to **Auto on**, then press **Send** once. Show the two placeholders in the sent message. | “Redact checked the draft on my device and replaced the phone number and student ID before ChatGPT received it.” |
+| 35–55s | Point to **Redacted message sent · 2 private details replaced**. | “I pressed Send as usual. Redact kept my request and removed the two details it flagged.” |
+| 55–70s | Open **History → Redaction activity** and show the new alert. | “I opted into alerts. Redact saved when I sent it and how many details it replaced. The prompt text stayed on this device until I sent the redacted version.” |
 | 70–90s | Open **AI tools → ChatGPT → Privacy and data settings**. Show the training and deletion actions. | “Before I send, Redact helps me share less. After I send, it shows me how to change my provider’s training or deletion settings.” |
 
 **Fictional draft to paste**
@@ -139,11 +141,11 @@ The local web server also runs the pairing API with SQLite. Use `REDACT_SYNC_URL
 
 **Rehearsal or backup:** Open the dashboard and click **Take a tour**. Follow the on-screen steps through **Check my prompt**, **Replace draft**, and **Simulate send**. Show the 75, 50, 20, and 0 scores in highest-exposure order. Explain that the prior entries are fictional and the simulated send stays in the page. Choose **Exit demo** to return to the real workspace.
 
-**Before judging:** Run the flow once on the same Chrome profile and laptop you'll use on stage. Enable history in the popup, confirm that a fictional send appears in the dashboard, and rehearse switching tabs. Preload Chrome’s local model only if you plan to show contextual detection. The 50-to-0 example uses the rules scanner and works without a model download. If ChatGPT or its composer is unavailable, use the dashboard rehearsal.
+**Before judging:** Run the flow once on the same Chrome profile and laptop you'll use on stage. Enable **Keep exposure history** in the popup and **Keep redaction alerts** in the dashboard, then confirm that a fictional send appears there. Preload Chrome’s local model only if you plan to show contextual detection in the manual preview. The automatic send uses the rules scanner. If ChatGPT or its composer is unavailable, use the dashboard rehearsal.
 
 ## How it works
 
-- **Extension.** The content script runs on ChatGPT. It checks the visible draft when asked, guards against replacing an edited draft, and waits for a matching visible user message before logging an opted-in send.
+- **Extension.** The content script runs on ChatGPT. It checks the visible draft on send, applies detected redactions, and resumes only after verifying the replacement. It waits for a matching visible user message before logging an opted-in send. A manual preview is also available.
 - **Scanner.** Version 2 rules cover common identifiers, explicit names, numbered street addresses, selected health disclosures, and credentials. Chrome's Prompt API or the opt-in desktop Ollama adapter can nominate verbatim contextual spans. Fixed weights count each category once and cap the score at 100. Desktop/dashboard rewrites let users keep necessary details; the extension applies consistent placeholders. A score of zero means that this scan found no signals.
 - **History.** The extension keeps up to 200 summaries in local Chrome storage. The allowlisted dashboard can only read those summaries. The popup owns consent and clearing history. Unchecked submissions use rules for a quick score, while an unchanged checked draft can also carry the contextual categories that were found.
 - **Guide.** Source-linked cards cover ChatGPT and DeepSeek consumer services. Actions open provider settings or a privacy portal and offer reviewable deletion request text. Users submit any request themselves.

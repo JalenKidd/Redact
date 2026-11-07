@@ -35,8 +35,14 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   const isChat = originOf(sender.url) === CHATGPT && sender.frameId === 0;
   if (message?.type === "REDACT_PREFERENCES" && (isPanel || isChat)) {
     return queued(async () => {
-      const { enabled, summaries } = await getHistory();
-      return { enabled, count: summaries.length };
+      const { enabled, summaries, autoRedact } = await chrome.storage.local.get(["enabled", "summaries", "autoRedact"]);
+      return { enabled: enabled === true, count: summaries?.length || 0, autoRedact: autoRedact !== false };
+    }, reply);
+  }
+  if (message?.type === "REDACT_SET_AUTO" && isPanel && typeof message.enabled === "boolean") {
+    return queued(async () => {
+      await chrome.storage.local.set({ autoRedact: message.enabled });
+      return { autoRedact: message.enabled };
     }, reply);
   }
   if (message?.type === "REDACT_SET_HISTORY" && isPanel && typeof message.enabled === "boolean") {

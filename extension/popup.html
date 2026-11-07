@@ -10,7 +10,10 @@
 <body>
   <header><img src="icons/48.png" width="35" height="35" alt=""><div><strong>Redact</strong><small>ON-DEVICE PROMPT PRIVACY</small></div></header>
   <main>
-    <p>Look for <b>Check with Redact</b> beside the ChatGPT composer.</p>
+    <section>
+      <label><span>Auto-redact before sending</span><input type="checkbox" id="auto-redact" disabled></label>
+      <p>Replace detected private details when you press Send in ChatGPT. Checks run on this device.</p>
+    </section>
     <section>
       <label><span>Keep exposure history</span><input type="checkbox" id="history" disabled></label>
       <p>Save scores and redaction counts for observed ChatGPT sends. Prompt text stays out of history.</p>
