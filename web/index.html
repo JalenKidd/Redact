@@ -59,7 +59,7 @@
             <label class="sr-only" for="prompt">Prompt to check</label>
             <textarea id="prompt" maxlength="20000" spellcheck="false" autocomplete="off" autocorrect="off" placeholder="What are you about to ask AI?&#10;&#10;Paste your prompt here. Redact will look for sensitive details before you share it."></textarea>
             <div class="editor-meta"><span id="char-count">0 / 20,000 characters</span><span id="engine-status"><span class="status-dot"></span> Rules ready</span></div>
-            <div class="editor-actions"><button class="text-button" id="clear-draft">Clear draft</button><button class="primary-button" id="check-prompt">Check my prompt <span aria-hidden="true">↗</span></button></div>
+            <div class="editor-actions"><button class="text-button" id="clear-draft">Clear draft</button><div class="check-actions"><button class="secondary-button" id="save-check" hidden>Save check</button><button class="primary-button" id="check-prompt">Check my prompt <span aria-hidden="true">↗</span></button></div></div>
             <p class="local-note"><span aria-hidden="true">▱</span> This check runs on your device. Your draft stays in this tab.</p>
           </section>
 
@@ -92,7 +92,7 @@
           <div class="card-heading"><h2>Prompt summaries</h2><div class="history-tools"><label for="history-filter" class="sr-only">Filter by exposure</label><select id="history-filter"><option value="all">All exposure levels</option><option value="high">High exposure · 50+</option><option value="low">Under 50</option></select><label for="history-sort" class="sr-only">Sort summaries</label><select id="history-sort"><option value="score">Highest exposure</option><option value="recent">Most recent</option></select></div></div>
           <div id="history-content"></div>
         </section>
-        <div class="history-actions"><p>History contains category labels and scores. Manage consent and clear browser history in the extension.</p><button class="text-button" id="refresh-history">Refresh history ↻</button></div>
+        <div class="history-actions"><p id="history-description">History contains category labels and scores. Manage consent and clear browser history in the extension.</p><div class="check-actions"><button class="text-button" id="desktop-history-settings" hidden>History settings</button><button class="text-button" id="refresh-history">Refresh history ↻</button></div></div>
       </section>
 
       <section id="policies-page" class="page" hidden>

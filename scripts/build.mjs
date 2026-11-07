@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { zipSync } from "fflate";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dist = join(root, "dist");
@@ -40,7 +40,18 @@ await Promise.all([
   writeFile(join(extension, "config.js"), config),
   writeFile(join(extension, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n"),
 ]);
-execFileSync("zip", ["-q", "-r", join(dist, "redact-extension.zip"), "."], { cwd: extension });
+await writeFile(join(dist, "redact-extension.zip"), zipSync(await archiveFiles(extension)));
 console.log("Dashboard built in dist/");
 console.log("Load unpacked Chrome extension from build/extension/");
 console.log("Chrome extension ID " + id);
+
+async function archiveFiles(directory, prefix = "") {
+  const files = {};
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const name = prefix + entry.name;
+    const file = join(directory, entry.name);
+    if (entry.isDirectory()) Object.assign(files, await archiveFiles(file, name + "/"));
+    else files[name] = await readFile(file);
+  }
+  return files;
+}

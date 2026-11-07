@@ -6,7 +6,69 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs && node scripts/serve.mjs",
-    "test": "node --test scripts/scanner.test.mjs"
+    "test": "node --test scripts/*.test.mjs",
+    "start": "npm run build && electron .",
+    "package:desktop": "npm run build && electron-builder --dir",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "test:desktop": "npm run build && node scripts/desktop-smoke.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "description": "On-device prompt privacy for your desktop and browser.",
+  "author": "JalenKidd",
+  "main": "desktop/main.mjs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JalenKidd/Redact.git"
+  },
+  "build": {
+    "appId": "com.jalenkidd.redact",
+    "productName": "Redact",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**",
+      "dist/**",
+      "shared/scanner.js",
+      "extension/icons/128.png",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": [
+        "zip",
+        "dmg"
+      ],
+      "icon": "desktop/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "desktop/icon.png"
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        "AppImage"
+      ],
+      "icon": "desktop/icon.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "fflate": "^0.8.3",
+    "playwright": "^1.65.0"
+  },
+  "overrides": {
+    "minimatch@^9.0.3": "^11.0.5",
+    "minimatch@^10.2.5": "^11.0.5"
+  }
 }

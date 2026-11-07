@@ -218,3 +218,7 @@ dialog code { color: #715190; font: 11px var(--mono); overflow-wrap: anywhere; }
 .editor-meta, .local-note, .score-footnote, .score-caption p, .empty-finding p { color: #6e6477; }
 .policy-question p, .policy-explainer p, dialog p, dialog li { color: #63576f; font-size: 13px; }
 .history-actions p { color: #6e6477; }
+.check-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.desktop-history-toggle { display: flex; align-items: center; justify-content: space-between; gap: 20px; font-weight: 600; margin: 20px 0 12px; }
+.desktop-history-toggle input { accent-color: var(--purple); width: 18px; height: 18px; }
+@media (max-width: 850px) { .editor-actions { flex-wrap: wrap; } .check-actions { gap: 8px; } }

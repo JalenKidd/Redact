@@ -4,14 +4,32 @@
 
 Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second-judging-walkthrough).
 
-## Run locally
+## Run the Electron app
 
-1. Install Node.js 20 or newer. The build also uses the `zip` command, which is included on macOS.
-2. Run `npm run dev` in this folder and open [the local dashboard](http://127.0.0.1:4173/).
-3. For the desktop integration, open `chrome://extensions` in Chrome. Turn on **Developer mode**, choose **Load unpacked**, and select the generated `build/extension` folder. Refresh ChatGPT.
-4. Pin Redact. In the popup, turn on **Keep exposure history** if you want the dashboard to record your submissions. **Open local dashboard** opens the local history view.
+1. Install Node.js **22.12 or newer**.
+2. Run `npm ci` in this folder.
+3. Run `npm start` to open Redact as a native Electron desktop app.
 
-`npm test` verifies the sample, scoring, anchored contextual edits, consent, and the history boundary. `npm run build` creates `dist/` and `build/extension/`. The website can also serve `dist/redact-extension.zip` for manual installation. To package for a different HTTPS dashboard origin, set `REDACT_SITE_URL` before building and reload the unpacked extension.
+The app bundles its own UI and runs the prompt scanner locally. Check a draft, review the rewrite, and copy it into your AI provider. To keep a manual-check summary, open **Exposure history → History settings**, enable saving, and choose **Save check** after checking a draft. Desktop history persists on this device and labels these records **Manual check**.
+
+### Package the desktop app
+
+- `npm run package:desktop` creates a runnable application folder for the current OS.
+- `npm run dist:mac` creates a Mac ZIP and DMG.
+- `npm run dist:win` creates a Windows installer.
+- `npm run dist:linux` creates a Linux AppImage.
+
+Outputs go in `release/`. Build each distribution on its target OS. Mac builds are unsigned local/demo builds. Public distribution needs platform signing credentials.
+
+`npm test` checks scoring, consent, and the two history stores. `npm run test:desktop` launches an isolated Electron test that verifies rewriting, saving, persistence after restart, and clearing. `REDACT_USER_DATA_DIR` can point the app at an isolated profile for tests and rehearsals.
+
+## Website and Chrome extension
+
+1. Run `npm run dev` and open [the local dashboard](http://127.0.0.1:4173/).
+2. For inline checking, open `chrome://extensions` in Chrome. Turn on **Developer mode**, choose **Load unpacked**, and select the generated `build/extension` folder. Refresh ChatGPT.
+3. Pin Redact. In the popup, turn on **Keep exposure history** to record summaries of observed ChatGPT submissions. **Open local dashboard** opens that browser history view.
+
+`npm run build` creates the shared web UI in `dist/`, the extension in `build/extension/`, and `dist/redact-extension.zip`. Set `REDACT_SITE_URL` before building to allow a different HTTPS dashboard origin, then reload the unpacked extension.
 
 ## 90-second judging walkthrough
 
@@ -27,6 +45,8 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 
 > Draft a short email asking my professor for a one-day extension on my lab report. For reference, my phone number is (202) 555-0147 and my student ID is PH-482716.
 
+**Desktop presentation:** Open Redact with `npm start` and click **Run the demo** for a self-contained walkthrough. To show real desktop persistence, exit the demo, check the fictional draft, enable history, choose **Save check**, and open **Exposure history**.
+
 **Rehearsal or backup:** Open the dashboard and click **Run the demo**. Follow the on-screen steps through **Check my prompt**, **Replace draft**, and **Simulate send**. Show the 75, 50, 20, and 0 scores in highest-exposure order. Explain that the prior entries are fictional and the simulated send stays in the page. Choose **Exit demo** to return to the real workspace.
 
 **Before judging:** Run the flow once on the same Chrome profile and laptop you'll use on stage. Enable history in the popup, confirm that a fictional send appears in the dashboard, and rehearse switching tabs. Preload Chrome’s local model only if you plan to show contextual detection. The 50-to-0 example uses the rules scanner and works without a model download. If ChatGPT or its composer is unavailable, use the dashboard rehearsal.
@@ -37,4 +57,5 @@ Built for Pluto Hacks. Start with the [90-second judging walkthrough](#90-second
 - **Scanner.** Rules cover common identifiers and credentials. Chrome's Prompt API can nominate verbatim contextual spans on compatible devices. Fixed weights count each category once and cap the score at 100. Rewrites replace the matched spans with typed placeholders. A score of zero means that this scan found no signals.
 - **History.** The extension keeps up to 200 summaries in local Chrome storage. The allowlisted dashboard can only read those summaries. The popup owns consent and clearing history. Unchecked submissions use rules for a quick score, while an unchanged checked draft can also carry the contextual categories that were found.
 - **Guide.** Source-linked cards cover ChatGPT and DeepSeek consumer services. Actions open provider settings or a privacy portal and offer reviewable deletion request text. Users submit any request themselves.
-- **Scope.** The responsive dashboard supports manual checking. Inline checking and submission history target desktop Chrome and the ChatGPT web composer. Desktop packaging with Electron and official chat export import are future work.
+- **Desktop app.** Electron bundles the UI in an isolated renderer with a narrow preload bridge. Manual-check history is opt-in and stored atomically in the app’s local data folder. Provider links open in the system browser.
+- **Scope.** The desktop app and responsive website support manual checking. Inline checking and observed-submission history target desktop Chrome and the ChatGPT web composer. The desktop app uses the rules scanner. Official chat export import is future work.
