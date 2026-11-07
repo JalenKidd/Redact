@@ -7,6 +7,7 @@
   let sweep;
   let pageTransition;
   let routeVersion = 0;
+  let profileAnimations = [];
 
   function navigation(tab, animate = true) {
     if (!tab) return;
@@ -104,29 +105,59 @@
     await sweep.finished.catch(() => {});
   }
 
-  function specimen(draft, after) {
+  function profile(dialog, origin, avatar, sections) {
+    profileAnimations.forEach(animation => animation.cancel());
     if (reduced()) return;
-    draft.animate([
-      { opacity: .5, transform: "translateY(4px)" },
-      { opacity: 1, transform: "none" },
-    ], { duration: 230, easing: spring });
-    if (after) {
-      for (const [index, mark] of [...draft.querySelectorAll("mark")].entries()) {
-        mark.animate([{ backgroundColor: "#ff704f", color: "#292019" }, { backgroundColor: "#302821", color: "#fffaf0" }],
-          { duration: 330, delay: index * 65, easing: spring, fill: "backwards" });
-      }
-    }
+    const panel = dialog.getBoundingClientRect();
+    const target = avatar.getBoundingClientRect();
+    const mobile = matchMedia("(max-width: 650px)").matches;
+    const bounded = (n, limit) => Math.max(-limit, Math.min(n, limit));
+    const dx = bounded(origin.x + origin.width / 2 - target.x - target.width / 2, 86);
+    const dy = bounded(origin.y + origin.height / 2 - target.y - target.height / 2, 44);
+    const pivot = bounded((origin.x - panel.x) / Math.max(1, panel.width) * 100 - 50, 50) + 50;
+    profileAnimations = [
+      dialog.animate([
+        { opacity: .15, transform: mobile ? "translateY(50px)" : "translateY(15px) scale(.96)", transformOrigin: pivot + "% 55%" },
+        { opacity: 1, transform: "none", transformOrigin: pivot + "% 55%" },
+      ], { duration: mobile ? 320 : 290, easing: spring }),
+      avatar.animate([
+        { opacity: .6, transform: "translate(" + dx + "px," + dy + "px) scale(.58)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 400, easing: "cubic-bezier(.18,.9,.28,1.15)" }),
+      ...sections.map((section, index) => section.animate([
+        { opacity: 0, transform: "translateY(9px)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 250, delay: 35 + index * 38, easing: spring, fill: "backwards" })),
+    ];
   }
 
-  async function redact(marks, individual) {
+  function revealTokens(tokens, delay = 0) {
+    if (reduced()) return [];
+    return tokens.slice(0, 14).map((token, index) => token.animate([
+      { backgroundColor: "var(--mask-color)", color: "transparent" },
+      { backgroundColor: "var(--mask-color)", color: "transparent", offset: .2 },
+      { backgroundColor: "var(--token-bg)", color: "var(--token-ink)" },
+    ], { duration: 210, delay: delay + Math.min(index, 5) * 38, easing: spring, fill: "backwards" }));
+  }
+
+  async function redact(originals, replacements = []) {
     if (reduced()) return;
-    const frames = individual
-      ? [{ backgroundColor: "#ffdfd3", color: "#802e1e" }, { backgroundColor: "#28221d", color: "#28221d" }]
-      : [{ opacity: 1, clipPath: "inset(0)" }, { opacity: .4, clipPath: "inset(0 0 95% 0)" }];
-    const animations = marks.map((mark, index) => mark.animate(frames,
-      { duration: individual ? 205 : 175, delay: Math.min(index, 4) * 30, easing: spring, fill: "forwards" }));
-    await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
-    for (const animation of animations) animation.cancel();
+    const wipes = originals.slice(0, 18).map((mark, index) => mark.animate([
+      { backgroundSize: "0% 100%", color: "var(--warn)" },
+      { backgroundSize: "78% 100%", color: "var(--warn)", offset: .55 },
+      { backgroundSize: "100% 100%", color: "transparent" },
+    ], { duration: 210, delay: Math.min(index, 5) * 36, easing: spring, fill: "forwards" }));
+    const reveals = revealTokens(replacements, 95);
+    await Promise.all([...wipes, ...reveals].map(animation => animation.finished.catch(() => {})));
+    wipes.forEach(animation => animation.cancel());
+  }
+
+  function applied(field) {
+    if (reduced()) return;
+    field.animate([
+      { boxShadow: "0 0 0 2px var(--good)" },
+      { boxShadow: "0 0 0 7px transparent" },
+    ], { duration: 390, easing: spring });
   }
 
   function findings() {
@@ -139,5 +170,5 @@
     });
   }
 
-  globalThis.RedactMotion = Object.freeze({ reveal, page, navigation, switchPage, score, resetScore, scan, specimen, redact, findings });
+  globalThis.RedactMotion = Object.freeze({ reduced, reveal, page, navigation, switchPage, score, resetScore, scan, profile, revealTokens, redact, applied, findings });
 })();

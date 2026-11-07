@@ -24,6 +24,7 @@ try {
   await page.getByRole("heading", { name: "Find your AI." }).waitFor();
   assert.match(await page.locator("#specimen-content").innerText(), /PH-482716/);
   await page.getByRole("button", { name: "After", exact: true }).click();
+  await page.locator("#specimen-content .replacement-token").first().waitFor();
   assert.match(await page.locator("#specimen-content").innerText(), /\[student ID\]/);
   assert.equal(await page.getByRole("button", { name: "After", exact: true }).getAttribute("aria-pressed"), "true");
   await page.getByRole("button", { name: "Try this example" }).click();
@@ -39,6 +40,8 @@ try {
   await page.getByRole("searchbox", { name: "Search AI tools" }).fill("claude");
   assert.equal(await page.locator(".tool-tile:visible").count(), 1);
   await page.getByRole("button", { name: "Claude", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector(".provider-hero img")?.naturalWidth > 0);
+  assert.match(await page.locator(".provider-example").innerText(), /weekend volunteer project/);
   await application.evaluate(({ clipboard, shell }) => {
     shell.openExternal = async url => { globalThis.redactTestOpenedUrl = url; };
     clipboard.writeText = text => { globalThis.redactTestClipboard = text; };
@@ -46,8 +49,9 @@ try {
   await page.getByRole("link", { name: "Open Claude", exact: true }).click();
   assert.equal(await application.evaluate(() => globalThis.redactTestOpenedUrl), "https://claude.ai/");
   assert.equal(application.windows().length, 1);
-  await page.getByRole("button", { name: "Check a prompt", exact: true }).click();
-  await page.getByText("Checking for Claude", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Load example", exact: true }).click();
+  await page.getByText("Draft for Claude", { exact: true }).waitFor();
+  assert.match(await page.locator("#prompt").inputValue(), /weekend volunteer project/);
   await page.waitForSelector("#load-example");
   assert.equal(await page.title(), "Redact — Think before you send.");
   assert.equal(await page.evaluate(() => typeof require), "undefined");
@@ -59,7 +63,7 @@ try {
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "45");
   assert.equal(await page.locator("#score-value").isVisible(), false);
   assert.equal(await page.locator("#rewritten").isVisible(), true);
-  assert.match(await page.locator("#result-summary").innerText(), /a street address and a full name/i);
+  assert.deepEqual(await page.locator("#result-labels li").allTextContents(), ["Street address", "Full name"]);
   assert.equal(await page.getByRole("link", { name: "Open Claude" }).getAttribute("href"), "https://claude.ai/");
   await page.getByRole("button", { name: "Copy suggestion" }).click();
   await page.getByText("Suggestion copied. Open Claude and paste it there.").waitFor();
@@ -76,6 +80,7 @@ try {
   assert.match(await page.locator("#rewrite-comparison").innerText(), /Revised 25\/100/);
   assert.match(await page.locator("#rewritten").innerText(), /type 1 diabetes.+\[email\]/);
   await page.getByRole("button", { name: "Replace draft", exact: false }).click();
+  assert.deepEqual(await page.locator("#draft-effect mark").allTextContents(), ["a@example.com"]);
   await page.waitForFunction(() => document.getElementById("score-value").textContent === "25");
   assert.match(await page.locator("#prompt").inputValue(), /Write 3 questions for my doctor\./);
   await page.locator("#prompt").fill("changed draft");

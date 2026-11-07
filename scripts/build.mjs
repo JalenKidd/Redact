@@ -50,7 +50,7 @@ await Promise.all([
 ]);
 await rm(join(dist, "vendor-entry.js"), { force: true });
 await writeFile(join(dist, "redact-extension.zip"), zipSync(await archiveFiles(extension)));
-const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".zip": "application/zip" };
+const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".zip": "application/zip" };
 const assets = {};
 for (const [name, bytes] of Object.entries(await archiveFiles(dist))) {
   const suffix = name.slice(name.lastIndexOf("."));

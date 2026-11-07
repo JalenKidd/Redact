@@ -108,7 +108,7 @@ dialog {
   width: min(calc(100% - 36px), 530px); max-height: 84dvh; border: 1px solid var(--line); border-radius: 19px;
   padding: 23px; color: var(--ink); background: var(--surface); box-shadow: 0 30px 100px #15110c55; overscroll-behavior: contain;
 }
-dialog[open] { animation: dialog-enter .29s var(--ease) both; }
+dialog[open]:not([data-view="provider"]) { animation: dialog-enter .29s var(--ease) both; }
 dialog::backdrop { background: #211c16a3; backdrop-filter: blur(5px); }
 @keyframes dialog-enter { from { opacity: 0; transform: translateY(15px) scale(.98); } to { opacity: 1; transform: none; } }
 .dialog-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

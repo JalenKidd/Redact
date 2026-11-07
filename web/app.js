@@ -66,13 +66,18 @@ async function copy(value, success) {
   }
 }
 
-function openDialog(label, heading, ...content) {
+function presentDialog(label, title, content, view = "") {
   $("modal-label").textContent = label;
-  const title = node("h2", null, heading);
+  modal.dataset.view = view;
   title.id = "dialog-heading";
   modal.setAttribute("aria-labelledby", title.id);
-  $("modal-content").replaceChildren(title, ...content);
+  $("modal-content").replaceChildren(...content);
   if (!modal.open) modal.showModal();
+}
+
+function openDialog(label, heading, ...content) {
+  const title = node("h2", null, heading);
+  presentDialog(label, title, [title, ...content]);
 }
 
 function updateDemo(message) {
@@ -96,6 +101,8 @@ function resetReview({ keepScore = false } = {}) {
   $("check-prompt").disabled = false;
   if (!keepScore) motion.resetScore();
   $("check-result").hidden = true;
+  $("draft-effect").hidden = true;
+  $("draft-effect").replaceChildren();
   $("draft-step").setAttribute("aria-current", "step");
   $("review-step").removeAttribute("aria-current");
   $("rewrite-card").hidden = true;
@@ -117,23 +124,30 @@ function setDraft(text, keepScore = false) {
   resetReview({ keepScore });
 }
 
-function listWords(items) {
-  if (items.length === 1) return items[0];
-  if (items.length === 2) return items[0] + " and " + items[1];
-  return items.slice(0, -1).join(", ") + ", and " + items.at(-1);
-}
-
 function resultSummary(result, { pending = false, replaced = false } = {}) {
   if (pending) return "Checking your draft on this device…";
-  if (replaced) return "Review your updated draft before sharing it.";
-  const labels = result.reasons.map(reason => {
-    const label = reason.label.charAt(0).toLowerCase() + reason.label.slice(1);
-    return (/^[aeiou]/.test(label) ? "an " : "a ") + label;
-  });
-  if (!labels.length) return "Redact did not find private details on this device. Take one more look before you share.";
-  const destination = selectedTool && !demo ? " Copy the suggestion, then paste it into " + selectedTool.name + " yourself." :
-    " Copy the suggestion, then paste it into the AI tool you use.";
-  return "Redact found " + listWords(labels) + " on this device." + destination;
+  if (replaced) return "Your draft is updated. Review it before you share.";
+  if (!result.reasons.length) return "Take one more look before sharing your draft.";
+  return selectedTool && !demo ? "Review the suggested draft before pasting it into " + selectedTool.name + "." :
+    "Review the suggested draft before sharing it.";
+}
+
+function paintDraft(container, text, matches, renderMatch) {
+  const fragment = document.createDocumentFragment();
+  let offset = 0;
+  for (const [index, match] of matches.entries()) {
+    fragment.append(text.slice(offset, match.start), renderMatch(match, index));
+    offset = match.end;
+  }
+  fragment.append(text.slice(offset));
+  container.replaceChildren(fragment);
+}
+
+function detailMark(match, value, style) {
+  const mark = node("mark", style, value);
+  mark.title = Redact.categories[match.kind].label;
+  mark.dataset.occurrence = match.id;
+  return mark;
 }
 
 function showResult(text, result, { replaced = false, pending = false } = {}) {
@@ -171,18 +185,9 @@ function showResult(text, result, { replaced = false, pending = false } = {}) {
 
   $("rewrite-card").hidden = !hasFindings;
   $("highlighted").replaceChildren();
-  $("rewritten").textContent = hasFindings ? result.rewritten : "";
   if (hasFindings) {
-    let offset = 0;
-    for (const match of result.matches) {
-      $("highlighted").append(document.createTextNode(text.slice(offset, match.start)));
-      const mark = node("mark", null, text.slice(match.start, match.end));
-      mark.title = Redact.categories[match.kind].label;
-      mark.dataset.occurrence = match.id;
-      $("highlighted").append(mark);
-      offset = match.end;
-    }
-    $("highlighted").append(document.createTextNode(text.slice(offset)));
+    paintDraft($("highlighted"), text, result.matches, match =>
+      detailMark(match, text.slice(match.start, match.end), "redact-mask"));
   }
   $("rewrite-choices").replaceChildren();
   const counts = {};
@@ -223,11 +228,14 @@ function updateRewrite() {
   const { text, result, choices } = lastReview;
   const plan = Redact.rewrite(text, result, choices);
   lastReview.plan = plan;
-  $("rewritten").textContent = plan.text;
+  paintDraft($("rewritten"), text, result.matches, (match, index) => {
+    const edit = plan.edits[index];
+    return edit.action === "replace" ? detailMark(match, edit.after, "replacement-token") : edit.after;
+  });
   const kept = plan.edits.filter(edit => edit.action === "keep").length;
   $("rewrite-comparison").textContent = `Original ${result.score}/100 → Revised ${plan.score}/100. ` +
     (kept ? `${kept} detail${kept === 1 ? "" : "s"} kept by you. ` : "") +
-    "Same rules and retained contextual findings; the rewrite has not received a new AI scan. Zero means no detected signals.";
+    "The revised score includes the details you chose to keep. A score of zero means the check found no signals.";
 }
 
 async function runCheck() {
@@ -266,17 +274,26 @@ async function runCheck() {
 }
 
 async function replaceDraft() {
-  if (!lastReview || lastReview.text !== prompt.value) return;
+  if (!lastReview || lastReview.text !== prompt.value || $("replace-draft").disabled) return;
   const review = lastReview;
   const plan = review.plan;
   const replacing = new Set(plan.edits.filter(edit => edit.action === "replace").map(edit => edit.id));
-  const marks = $("rewrite-options").open
-    ? [...$("highlighted").querySelectorAll("mark")].filter(mark => replacing.has(mark.dataset.occurrence))
-    : [];
   const choices = $("rewrite-choices").querySelectorAll("select");
   $("replace-draft").disabled = true;
   choices.forEach(select => { select.disabled = true; });
-  await motion.redact(marks.length ? marks : [$("rewritten")], marks.length > 0);
+  if (replacing.size && !motion.reduced()) {
+    const effect = $("draft-effect");
+    paintDraft(effect, review.text, review.result.matches, match => {
+      const original = review.text.slice(match.start, match.end);
+      return replacing.has(match.id) ? detailMark(match, original, "redact-mask") : original;
+    });
+    effect.hidden = false;
+    effect.scrollTop = prompt.scrollTop;
+    const visibleOriginals = $("rewrite-options").open
+      ? [...$("highlighted").querySelectorAll("mark")].filter(mark => replacing.has(mark.dataset.occurrence))
+      : [];
+    await motion.redact([...effect.querySelectorAll("mark"), ...visibleOriginals], [...$("rewritten").querySelectorAll("mark")]);
+  }
   if (review !== lastReview || review.text !== prompt.value) return;
   $("replace-draft").disabled = false;
   choices.forEach(select => { select.disabled = false; });
@@ -288,16 +305,14 @@ async function replaceDraft() {
   const result = { ...Redact.scan(text, contextual), contextual: prior.contextual, coverage: prior.coverage };
   setDraft(text, true);
   showResult(text, result, { replaced: true });
+  motion.applied(prompt.parentElement);
   if (demo) {
     updateDemo("03 / Exposure dropped from " + before + " to " + result.score + ". Simulate a send to see the summary.");
     $("demo-send").hidden = false;
     motion.reveal($("demo-send"));
     $("simulate-send").focus({ preventScroll: true });
     $("demo-send").scrollIntoView({ behavior: scrollBehavior(), block: "nearest" });
-  } else if (activeRoute === "scan") {
-    prompt.focus({ preventScroll: true });
-    $("draft-heading").scrollIntoView({ behavior: scrollBehavior(), block: "center" });
-  }
+  } else if (activeRoute === "scan") $("result-heading").focus({ preventScroll: true });
   notify("Selected details replaced. Review the draft before sharing.");
 }
 
@@ -635,8 +650,17 @@ function policyDetails(policy) {
 }
 
 function toolMark(tool) {
-  const mark = node("span", "tool-mark " + tool.color, tool.mark);
+  const mark = node("span", "tool-mark");
   mark.setAttribute("aria-hidden", "true");
+  const logo = node("img", "tool-logo");
+  logo.src = "ai-logos/" + tool.id + ".png";
+  logo.alt = "";
+  logo.width = logo.height = 40;
+  logo.draggable = false;
+  logo.addEventListener("error", () => {
+    mark.textContent = tool.mark;
+  }, { once: true });
+  mark.append(logo);
   return mark;
 }
 
@@ -644,7 +668,7 @@ function renderDestination() {
   const tool = demo ? null : selectedTool;
   $("tool-destination").hidden = !tool;
   if (tool) {
-    $("selected-tool").replaceChildren(toolMark(tool), node("span", null, "Checking for " + tool.name));
+    $("selected-tool").replaceChildren(toolMark(tool), node("span", null, "Draft for " + tool.name));
     const destination = $("open-destination");
     destination.href = tool.url;
     destination.textContent = "Open " + tool.name + " ↗";
@@ -661,43 +685,71 @@ function renderResultActions() {
   $("open-destination").hidden = !tool;
 }
 
-function openTool(tool) {
-  const identity = node("div", "tool-identity");
-  identity.append(toolMark(tool), node("p", null, tool.description));
-  const actions = node("div", "dialog-actions");
-  actions.append(button("Check a prompt", "primary-button", () => {
+function openTool(tool, category, source) {
+  const origin = source.querySelector(".tool-mark").getBoundingClientRect();
+  const profile = node("div", "provider-profile");
+  profile.dataset.tone = tool.color;
+  const hero = node("div", "provider-hero");
+  const avatar = toolMark(tool);
+  const title = node("h2", "provider-name", tool.name);
+  const identity = node("div", "provider-identity");
+  identity.append(node("div", "provider-category", category), title, node("p", null, tool.description));
+  hero.append(avatar, identity);
+
+  const begin = (example = false) => {
     selectedTool = tool;
+    if (example) setDraft(tool.example);
     renderDestination();
     modal.close();
     focusDraftOnScan = true;
     navigate("scan");
-  }), link("Open " + tool.name, tool.url, "secondary-button"));
+  };
+  const actions = node("div", "provider-actions");
+  const open = link("Open " + tool.name, tool.url, "secondary-button");
+  open.append(node("span", "provider-link-icon", "↗"));
+  open.lastChild.setAttribute("aria-hidden", "true");
+  actions.append(button("Check a prompt", "primary-button", () => begin()), open);
+
+  const example = node("section", "provider-example");
+  const exampleHead = node("div", "provider-example-head");
+  exampleHead.append(node("h3", null, "Try an example"), button("Load example", "text-button", () => begin(true)));
+  example.append(exampleHead, node("p", null, tool.example));
+
+  const footer = node("div", "provider-footer");
+  const host = new URL(tool.url).hostname.replace(/^www\./, "");
+  footer.append(node("span", "provider-host", host), node("span", null, "Prompt checks stay on this device"));
   const policy = RedactPolicies.find(item => item.id === tool.id);
   const privacy = policy ? policyDetails(policy) : tool.privacy ? link("Official privacy information ↗", tool.privacy, "tool-privacy-link") : null;
-  openDialog("AI TOOLS", tool.name, identity, actions, ...(privacy ? [privacy] : []));
+  profile.append(hero, actions, example);
+  if (privacy) profile.append(privacy);
+  profile.append(footer);
+  presentDialog("AI PROFILE", title, [profile], "provider");
+  motion.profile(modal, origin, avatar, [identity, actions, example, footer]);
 }
 
 const specimenScan = Redact.scan(Redact.sample);
 const specimenPlan = Redact.rewrite(Redact.sample, specimenScan);
+let specimenVersion = 0;
 
-function renderSpecimen(mode, animate = true) {
+async function renderSpecimen(mode, animate = true) {
+  const version = ++specimenVersion;
   const after = mode === "after";
   const specimen = $("specimen");
   specimen.dataset.mode = mode;
   for (const control of specimen.querySelectorAll("[data-specimen]")) {
     control.setAttribute("aria-pressed", String(control.dataset.specimen === mode));
   }
-  const draft = node("p");
-  let offset = 0;
-  for (const [index, match] of specimenScan.matches.entries()) {
-    draft.append(document.createTextNode(Redact.sample.slice(offset, match.start)));
-    draft.append(node("mark", after ? "cleaned" : null, after ? specimenPlan.edits[index].after : Redact.sample.slice(match.start, match.end)));
-    offset = match.end;
+  const content = $("specimen-content");
+  if (animate && after && !motion.reduced()) {
+    await motion.redact([...content.querySelectorAll(".redact-mask")]);
+    if (version !== specimenVersion) return;
   }
-  draft.append(document.createTextNode(Redact.sample.slice(offset)));
-  $("specimen-content").replaceChildren(draft);
+  const draft = node("p");
+  paintDraft(draft, Redact.sample, specimenScan.matches, (match, index) =>
+    detailMark(match, after ? specimenPlan.edits[index].after : Redact.sample.slice(match.start, match.end), after ? "replacement-token" : "redact-mask"));
+  content.replaceChildren(draft);
   $("specimen-status").textContent = after ? "Example · details replaced" : "Fictional example";
-  if (animate) motion.specimen(draft, after);
+  if (animate && after) motion.revealTokens([...draft.querySelectorAll("mark")]);
 }
 
 function renderTools() {
@@ -723,7 +775,7 @@ function renderTools() {
     const list = node("ul", "tool-row");
     list.id = id;
     for (const [offset, tool] of matches.entries()) {
-      const tile = button("", "tool-tile", () => openTool(tool));
+      const tile = button("", "tool-tile", () => openTool(tool, group.name, tile));
       tile.append(toolMark(tool), node("span", "tool-name", tool.name));
       tile.setAttribute("aria-label", tool.name);
       const item = node("li");
