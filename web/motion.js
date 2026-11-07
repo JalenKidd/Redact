@@ -96,9 +96,9 @@
     ], { duration: 650, easing: "ease-in-out" });
   }
 
-  async function redact(container) {
+  async function redact(marks) {
     if (reduced()) return;
-    const animations = [...container.querySelectorAll("mark")].map((mark, index) => mark.animate([
+    const animations = marks.map((mark, index) => mark.animate([
       { backgroundColor: "#e9defb", color: "#7853a6", transform: "scaleX(1)" },
       { backgroundColor: "#30243f", color: "#30243f", transform: "scaleX(1.02)" },
     ], { duration: 240, delay: index * 45, easing: spring, fill: "forwards" }));

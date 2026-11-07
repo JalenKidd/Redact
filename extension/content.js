@@ -113,6 +113,13 @@
     const text = read(current);
     const version = ++scanVersion;
     setPanel(true);
+    if (text.length > Redact.maxLength) {
+      review = null;
+      score.textContent = "Not scored";
+      reasons.hidden = suggestion.hidden = replace.hidden = true;
+      status.textContent = "This draft exceeds 20,000 characters. Shorten it before checking; it has not been fully scanned.";
+      return;
+    }
     if (!text.trim()) {
       review = null;
       score.textContent = "";
@@ -200,6 +207,7 @@
   function stage() {
     if (!historyEnabled || !composer?.isConnected) return;
     const text = read(composer);
+    if (text.length > Redact.maxLength) return;
     const normalized = normalize(text);
     if (!normalized) return;
     if (staged?.normalized === normalized && staged.composer === composer) return;

@@ -361,3 +361,8 @@ html[data-slide="previous"] { --enter-x: -24px; --exit-x: 14px; }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(redact-workspace), ::view-transition-old(redact-workspace), ::view-transition-new(redact-workspace) { animation: none !important; }
 }
+#workspace .rewrite-choices { margin: 8px 19px 12px; padding: 12px 14px; border-color: var(--work-line); background: var(--work-field); }
+#workspace .rewrite-choices legend { color: var(--work-ink); }
+#workspace .rewrite-choices>p, #workspace .rewrite-choice code, #workspace .rewrite-choice small { color: var(--work-muted); }
+#workspace .rewrite-choice { border-color: var(--work-line); }
+#workspace .rewrite-comparison { margin: 0 19px 13px; padding: 10px 13px; background: var(--work-field); color: var(--work-ink); }
