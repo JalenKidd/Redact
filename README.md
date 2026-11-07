@@ -71,9 +71,11 @@ Linked devices sync while Redact is open. **Sync now** refreshes immediately. Ch
 
 ## Redaction alerts
 
-In Chrome, **Auto-redact before sending** is on by default. Press **Send** in ChatGPT and Redact replaces detected private details in supported text drafts before the message goes out. The extension popup lets you turn this off, and **Check with Redact** is still available for a preview. Auto-redaction uses local rules. For a formatted draft it cannot safely replace, Redact pauses the send for review.
+Choose **Off**, **Manual**, or **Auto** in the Chrome extension. **Off** pauses checks and recording of new Chrome activity. **Manual** lets you use **Check with Redact** when you choose. **Auto** is the default and replaces detected private details on **Send**. It uses local rules and pauses the send for review if it cannot safely update the draft.
 
-**Replace draft** shows a **Draft redacted** notification and adds a session alert under **History → Redaction activity**. The Chrome extension shows **Redacted message sent** in ChatGPT when the unchanged replacement appears as a new user message after a send attempt. For those alerts in the dashboard, enable **Keep exposure history** in the extension and **Keep redaction alerts** in the dashboard, then keep Redact open in the same Chrome profile.
+**Replace draft** shows a **Draft redacted** notification and adds a session alert under **History → Redaction activity**. The Chrome extension shows **Redacted message sent** when a replacement appears as a new user message. The usage panel counts confirmed messages separately from details removed and drafts redacted in Redact, across up to 60 recent alerts.
+
+To sync Chrome usage, create a pairing code in **Devices → Add a device** on the website or Electron app. Paste it into **Sync Chrome usage → Link Chrome to Redact** in the extension. Chrome sends encrypted redaction summaries even while the website and Electron are closed. Link the website and Electron to the same workspace to see the same usage. **Keep exposure history** is a separate setting for Chrome’s local score history. **Disconnect Chrome** stops new uploads and discards pending alerts from the browser.
 
 With **Keep redaction alerts** on, Redact saves the provider, event type, time, and number of details replaced. Paired devices exchange these alerts encrypted, separately from saved check history. You can clear recent alerts from **Redaction activity**. Drafts and messages stay on the device. Web and desktop draft alerts report an edit, since Redact does not observe what you paste into another app.
 
@@ -141,7 +143,7 @@ The local web server also runs the pairing API with SQLite. Use `REDACT_SYNC_URL
 
 **Rehearsal or backup:** Open the dashboard and click **Take a tour**. Follow the on-screen steps through **Check my prompt**, **Replace draft**, and **Simulate send**. Show the 75, 50, 20, and 0 scores in highest-exposure order. Explain that the prior entries are fictional and the simulated send stays in the page. Choose **Exit demo** to return to the real workspace.
 
-**Before judging:** Run the flow once on the same Chrome profile and laptop you'll use on stage. Enable **Keep exposure history** in the popup and **Keep redaction alerts** in the dashboard, then confirm that a fictional send appears there. Preload Chrome’s local model only if you plan to show contextual detection in the manual preview. The automatic send uses the rules scanner. If ChatGPT or its composer is unavailable, use the dashboard rehearsal.
+**Before judging:** Run the flow once on the same Chrome profile and laptop you'll use on stage. Pair **Sync Chrome usage** in the extension, then confirm that a fictional send appears in **Redaction activity**. Preload Chrome’s local model only if you plan to show contextual detection in the manual preview. The automatic send uses the rules scanner. If ChatGPT or its composer is unavailable, use the dashboard rehearsal.
 
 ## How it works
 

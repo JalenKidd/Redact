@@ -4,7 +4,7 @@ import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { createLocalDatabase } from "./local-db.mjs";
-import worker from "../worker/index.mjs";
+import worker from "../dist/server/index.js";
 
 const root = fileURLToPath(new URL("../dist", import.meta.url));
 const database = createLocalDatabase(process.env.REDACT_SYNC_DB || fileURLToPath(new URL("../.data/sync.sqlite", import.meta.url)));

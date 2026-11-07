@@ -1,8 +1,10 @@
-importScripts("scanner.js", "config.js");
+importScripts("config.js", "sync.js", "activity-sync.js");
 
 const CHATGPT = "https://chatgpt.com";
 const PANEL = chrome.runtime.getURL("popup.html");
 const HISTORY_LIMIT = 200;
+const modes = ["off", "manual", "auto"];
+const protectionMode = ({ mode, autoRedact }) => modes.includes(mode) ? mode : autoRedact === false ? "manual" : "auto";
 let pending = Promise.resolve();
 
 function originOf(url) {
@@ -35,16 +37,28 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   const isChat = originOf(sender.url) === CHATGPT && sender.frameId === 0;
   if (message?.type === "REDACT_PREFERENCES" && (isPanel || isChat)) {
     return queued(async () => {
-      const { enabled, summaries, autoRedact } = await chrome.storage.local.get(["enabled", "summaries", "autoRedact"]);
-      return { enabled: enabled === true, count: summaries?.length || 0, autoRedact: autoRedact !== false };
+      const settings = await chrome.storage.local.get(["enabled", "summaries", "mode", "autoRedact"]);
+      return { enabled: settings.enabled === true, count: settings.summaries?.length || 0, mode: protectionMode(settings) };
     }, reply);
   }
-  if (message?.type === "REDACT_SET_AUTO" && isPanel && typeof message.enabled === "boolean") {
+  if (message?.type === "REDACT_SET_MODE" && isPanel && modes.includes(message.mode)) {
     return queued(async () => {
-      await chrome.storage.local.set({ autoRedact: message.enabled });
-      return { autoRedact: message.enabled };
+      await chrome.storage.local.set({ mode: message.mode });
+      return { mode: message.mode };
     }, reply);
   }
+  if (message?.type === "REDACT_ACTIVITY_STATUS" && isPanel) return queued(RedactChromeActivity.status, reply);
+  if (message?.type === "REDACT_ACTIVITY_LINK" && isPanel && typeof message.code === "string" && message.code.length <= 1000) {
+    return queued(async () => {
+      try {
+        await RedactChromeActivity.link(message.code);
+        return { linked: true };
+      } catch (error) {
+        return { error: error.message || "Could not link Chrome." };
+      }
+    }, reply);
+  }
+  if (message?.type === "REDACT_ACTIVITY_DISCONNECT" && isPanel) return queued(RedactChromeActivity.disconnect, reply);
   if (message?.type === "REDACT_SET_HISTORY" && isPanel && typeof message.enabled === "boolean") {
     return queued(async () => {
       await chrome.storage.local.set({ enabled: message.enabled });
@@ -59,15 +73,20 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   }
   if (message?.type === "REDACT_LOG" && isChat && Array.isArray(message.kinds)) {
     return queued(async () => {
-      const { enabled, summaries } = await getHistory();
-      if (!enabled) return { saved: false };
+      const settings = await chrome.storage.local.get(["enabled", "summaries", "mode", "autoRedact"]);
+      if (protectionMode(settings) === "off") return { saved: false };
+      const { enabled, summaries = [] } = settings;
+      const timestamp = Date.now();
+      let event;
+      if (Number.isSafeInteger(message.redactedCount) && message.redactedCount > 0 && message.redactedCount <= 20_000) {
+        event = { id: crypto.randomUUID(), timestamp, kind: "chat-sent", provider: "chatgpt", count: message.redactedCount };
+      }
+      const recorded = event && await RedactChromeActivity.record(event).catch(() => false);
+      if (enabled !== true) return { saved: !!recorded };
       const kinds = [...new Set(message.kinds.filter(kind => typeof kind === "string" && Object.hasOwn(Redact.categories, kind)))];
       const score = Math.min(100, kinds.reduce((total, kind) => total + Redact.categories[kind].points, 0));
-      const summary = { provider: "ChatGPT", timestamp: Date.now(), score, kinds };
-      if (Number.isSafeInteger(message.redactedCount) && message.redactedCount > 0 && message.redactedCount <= 20_000) {
-        summary.redactedCount = message.redactedCount;
-        summary.redactionId = crypto.randomUUID();
-      }
+      const summary = { provider: "ChatGPT", timestamp, score, kinds };
+      if (event) Object.assign(summary, { redactedCount: event.count, redactionId: event.id });
       await chrome.storage.local.set({ summaries: [summary, ...summaries].slice(0, HISTORY_LIMIT) });
       return { saved: true };
     }, reply);

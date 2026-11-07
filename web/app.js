@@ -461,8 +461,8 @@ async function refreshHistory() {
     void syncClient.sync().catch(() => {});
   }
   if (activeRoute === "history") renderHistory();
-  void redactionActivity.refresh(extension?.summaries);
   document.dispatchEvent(new Event("redact:history"));
+  return redactionActivity.refresh(extension?.summaries);
 }
 
 function renderHistory() {

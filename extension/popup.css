@@ -17,3 +17,14 @@ button:disabled { cursor: default; opacity: .5; }
 dialog { width: 235px; color: #211f1b; background: #fffefa; border: 1px solid #ded9cd; border-radius: 12px; }
 dialog::backdrop { background: #211c167f; }
 form { display: flex; gap: 15px; }
+fieldset { padding: 0; margin: 0; border: 0; }
+legend { font-weight: 750; padding: 0 0 7px; }
+.mode-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.mode-options label { display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.mode-options input { margin: 0; }
+#activity-pair summary { cursor: pointer; color: #a1321e; font-weight: 700; }
+#activity-form { display: grid; gap: 5px; margin: 9px 0; }
+#activity-form input { width: 100%; padding: 5px; border: 1px solid #a29a8d; border-radius: 5px; }
+#activity-form button { text-align: left; }
+#activity-disconnect { display: inline-block; margin-bottom: 6px; }
+[hidden] { display: none !important; }

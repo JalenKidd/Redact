@@ -7,7 +7,11 @@ globalThis.RedactActivity = Object.freeze({
     const list = document.getElementById("activity-items");
     const status = document.getElementById("activity-status");
     const clear = document.getElementById("activity-clear");
+    const messageTotal = document.getElementById("activity-message-total");
+    const detailTotal = document.getElementById("activity-detail-total");
+    const draftTotal = document.getElementById("activity-draft-total");
     const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+    const number = new Intl.NumberFormat();
     const startedAt = Date.now();
     let saved = mergeActivity();
     let enabledSince = 0;
@@ -47,10 +51,14 @@ globalThis.RedactActivity = Object.freeze({
     function render() {
       section.hidden = isDemo();
       const events = visible();
+      const messages = events.filter(event => event.kind === "chat-sent");
+      messageTotal.textContent = number.format(messages.length);
+      detailTotal.textContent = number.format(messages.reduce((total, event) => total + event.count, 0));
+      draftTotal.textContent = number.format(events.length - messages.length);
       clear.hidden = events.length === 0;
       list.hidden = events.length === 0;
       status.textContent = syncError ? "Alerts couldn’t sync. Redact will try again while it’s open."
-        : events.length ? (sync.status().connected ? "Recent redactions across linked devices." : "Recent redactions on this device.")
+        : events.length ? (sync.status().connected ? "Totals cover up to 60 recent alerts across linked devices." : "Totals cover up to 60 recent alerts on this device.")
         : "Redactions will appear here when you apply them.";
       list.replaceChildren(...events.slice(0, 6).map(event => {
         const row = document.createElement("li");

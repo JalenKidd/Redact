@@ -36,7 +36,7 @@
   const wrap = document.createElement("div");
   wrap.className = "wrap";
   wrap.innerHTML = `
-    <button type="button" class="launch" aria-label="Check with Redact" aria-expanded="false" aria-controls="redact-panel"><span class="mark" aria-hidden="true">▰</span> Check with Redact <span class="auto-state">Auto loading</span></button>
+    <button type="button" class="launch" aria-label="Check with Redact" aria-expanded="false" aria-controls="redact-panel"><span class="mark" aria-hidden="true">▰</span> Check with Redact <span class="auto-state">Loading</span></button>
     <div class="send-alert" role="status" hidden></div>
     <section class="panel" id="redact-panel" aria-label="Redact exposure check" hidden>
       <div class="top"><span class="eyebrow">REDACT / DRAFT CHECK</span><button class="close" type="button" aria-label="Close draft check">×</button></div>
@@ -77,7 +77,7 @@
   let review = null;
   let scanVersion = 0;
   let historyEnabled = false;
-  let autoRedact = null;
+  let mode = null;
   let staged = null;
   let expiry;
   let appliedRedaction = null;
@@ -278,7 +278,7 @@
   }
 
   function handleSend(event, retry) {
-    if (!composer?.isConnected || event.defaultPrevented) return;
+    if (!composer?.isConnected || event.defaultPrevented || mode === "off") return;
     const text = read(composer);
     if (!text.trim()) return;
     const pause = () => {
@@ -289,13 +289,13 @@
       pause();
       return;
     }
-    if (autoRedact === false) {
+    if (mode === "manual") {
       stage();
       return;
     }
-    if (autoRedact === null || text.length > Redact.maxLength) {
+    if (mode === null || text.length > Redact.maxLength) {
       pause();
-      alert(autoRedact === null ? "Redact settings are loading. Try Send again." :
+      alert(mode === null ? "Redact settings are unavailable. Refresh ChatGPT and try again." :
         "Auto-redact paused this send. Shorten your draft to 20,000 characters or fewer.");
       return;
     }
@@ -327,7 +327,7 @@
     setTimeout(() => {
       pendingSend = false;
       const updated = read(editor);
-      if (composer !== editor || !editor.isConnected || updated.length > Redact.maxLength ||
+      if (mode !== "auto" || composer !== editor || !editor.isConnected || updated.length > Redact.maxLength ||
           normalize(updated) !== normalize(result.rewritten) || Redact.scan(updated).matches.length) {
         alert("Redact paused this send. Review the updated draft and try again.");
         return;
@@ -353,7 +353,7 @@
     });
   }, true);
   document.addEventListener("keydown", event => {
-    if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
+    if (mode === "off" || event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ||
         event.isComposing || event.keyCode === 229 || !composer?.contains(event.target)) return;
     if (composer instanceof HTMLTextAreaElement || !sendButton() || composer.getAttribute("aria-expanded") === "true") {
       stage();
@@ -410,7 +410,7 @@
       if (redactedCount) {
         alert("Redacted message sent · " + redactedCount + (redactedCount === 1 ? " private detail replaced" : " private details replaced"));
       }
-      if (historyEnabled) void chrome.runtime.sendMessage({ type: "REDACT_LOG", kinds, redactedCount }).catch(() => {});
+      if (historyEnabled || redactedCount) void chrome.runtime.sendMessage({ type: "REDACT_LOG", kinds, redactedCount }).catch(() => {});
       break;
     }
   }
@@ -418,16 +418,24 @@
   sync();
   new MutationObserver(sync).observe(document.body, { subtree: true, childList: true, characterData: true });
 
-  function setAutoRedact(enabled) {
-    autoRedact = enabled;
-    autoState.textContent = enabled ? "Auto on" : "Auto off";
-    launch.setAttribute("aria-label", "Check with Redact. Auto-redact " + (enabled ? "on" : "off"));
+  function setMode(value) {
+    mode = value;
+    autoState.textContent = { off: "Off", manual: "Manual", auto: "Auto on" }[value];
+    launch.disabled = value === "off";
+    launch.setAttribute("aria-label", value === "off" ? "Redact is off" : "Check with Redact. " + autoState.textContent);
+    if (value === "off") {
+      ++scanVersion;
+      review = appliedRedaction = null;
+      clearStaged();
+      setPanel(false);
+      sendAlert.hidden = true;
+    }
   }
 
   let historyChanged = false;
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes.autoRedact) setAutoRedact(changes.autoRedact.newValue !== false);
+    if (changes.mode && ["off", "manual", "auto"].includes(changes.mode.newValue)) setMode(changes.mode.newValue);
     if (changes.enabled) {
       historyChanged = true;
       historyEnabled = changes.enabled.newValue === true;
@@ -436,9 +444,9 @@
   });
   void chrome.runtime.sendMessage({ type: "REDACT_PREFERENCES" }).then(result => {
     if (!historyChanged) historyEnabled = result?.enabled === true;
-    if (autoRedact === null && result && !result.error) setAutoRedact(result.autoRedact !== false);
-    if (autoRedact === null) autoState.textContent = "Auto unavailable";
+    if (mode === null && ["off", "manual", "auto"].includes(result?.mode)) setMode(result.mode);
+    if (mode === null) autoState.textContent = "Unavailable";
   }).catch(() => {
-    autoState.textContent = "Auto unavailable";
+    if (mode === null) autoState.textContent = "Unavailable";
   });
 })();

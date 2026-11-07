@@ -205,7 +205,7 @@ export function createSyncClient({ baseURL, pairingURL = baseURL, storage = loca
         return synchronize();
       });
     },
-    async join(code, name, kind) {
+    async join(code, name, kind, { activityOnly = false } = {}) {
       return queue(async () => {
         if (state.credentials) throw new Error("Disconnect this device before pairing it to another space.");
         let invitation;
@@ -219,7 +219,7 @@ export function createSyncClient({ baseURL, pairingURL = baseURL, storage = loca
         const credentials = await request("/join", { method: "POST", body: JSON.stringify({ invitation: invitation.invitation, name, kind }) }, false);
         state = { credentials: { ...credentials, key: invitation.key, base }, snapshot: emptySnapshot(), name, kind, lastSynced: null };
         persist();
-        return synchronize();
+        return activityOnly ? status() : synchronize();
       });
     },
     sync,

@@ -92,9 +92,14 @@ test("redaction alerts sync separately, discard draft text, and stay cleared aft
     const fetcher = (url, init) => worker.fetch(new Request(url, init), { DB: db });
     const laptopStorage = storage();
     const laptop = createSyncClient({ baseURL: origin, storage: laptopStorage, fetcher });
-    const phone = createSyncClient({ baseURL: origin, storage: storage(), fetcher });
+    const activityPaths = [];
+    const phone = createSyncClient({ baseURL: origin, storage: storage(), fetcher: (url, init) => {
+      activityPaths.push(new URL(url).pathname);
+      return fetcher(url, init);
+    } });
     await laptop.create("Laptop", "computer");
-    await phone.join((await laptop.invitation()).code, "Phone", "phone");
+    await phone.join((await laptop.invitation()).code, "Chrome extension", "browser", { activityOnly: true });
+    assert.deepEqual(activityPaths, ["/api/sync/join"]);
     const draft = {
       id: crypto.randomUUID(), timestamp: Date.now(), kind: "draft-redacted", provider: "claude", count: 2,
       original: "private@example.com", suggested: "Write a thank you note.",

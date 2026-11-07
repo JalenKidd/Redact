@@ -20,6 +20,7 @@ const id = createHash("sha256").update(Buffer.from(key, "base64")).digest("hex")
   .replace(/[0-9a-f]/g, digit => String.fromCharCode(97 + Number.parseInt(digit, 16)));
 const manifest = JSON.parse(await readFile(join(root, "extension", "manifest.json"), "utf8"));
 manifest.key = key;
+manifest.host_permissions = [`${syncURL.protocol}//${syncURL.hostname}/*`];
 manifest.externally_connectable = {
   matches: ["http://127.0.0.1/*", hosted.origin + "/*", pagesSite.href + "*"],
 };
@@ -57,6 +58,7 @@ await Promise.all([
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
   }),
   build({ entryPoints: [join(root, "shared/sync.mjs")], outfile: join(dist, "sync.js"), bundle: true, format: "iife", globalName: "RedactSync", target: "es2022" }),
+  build({ entryPoints: [join(root, "shared/sync.mjs")], outfile: join(extension, "sync.js"), bundle: true, format: "iife", globalName: "RedactSync", target: "es2022" }),
   build({ entryPoints: [join(root, "web/vendor-entry.js")], outfile: join(dist, "qr.js"), bundle: true, format: "iife", target: "es2022" }),
 ]);
 await writeFile(join(dist, "redact-extension.zip"), zipSync(await archiveFiles(extension)));
@@ -93,6 +95,7 @@ async function buildHostedWorker() {
       __REDACT_ASSETS__: JSON.stringify(assets),
       __REDACT_ORIGIN__: JSON.stringify(hosted.origin),
       __REDACT_PAGES_ORIGIN__: JSON.stringify(pagesSite.origin),
+      __REDACT_EXTENSION_ORIGIN__: JSON.stringify("chrome-extension://" + id),
     },
   });
   await mkdir(join(dist, ".openai"), { recursive: true });

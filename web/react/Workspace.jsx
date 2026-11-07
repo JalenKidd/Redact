@@ -129,15 +129,21 @@ function HistoryPage() {
     <section id="history-page" className="page" hidden>
       <div className="page-heading"><div><div className="section-kicker">SAVED CHECKS</div><h1>History<span>.</span></h1><p>Find the checks you’ve saved.</p></div></div>
       <section className="card redaction-activity" id="redaction-activity" aria-labelledby="activity-heading">
-        <div className="activity-heading"><div><div className="section-kicker">REDACT ALERTS</div><h2 id="activity-heading">Redaction activity</h2></div>
+        <div className="activity-heading"><div><div className="section-kicker">USAGE</div><h2 id="activity-heading">Redaction activity</h2></div>
           <button type="button" className="text-button" id="activity-clear" hidden>Clear alerts</button></div>
+        <dl className="activity-totals" aria-label="Usage across recent redaction alerts">
+          <div><dt>Messages redacted</dt><dd id="activity-message-total">0</dd></div>
+          <div><dt>Details removed from messages</dt><dd id="activity-detail-total">0</dd></div>
+          <div><dt>Drafts redacted in Redact</dt><dd id="activity-draft-total">0</dd></div>
+        </dl>
         <p id="activity-status">Redactions will appear here when you apply them.</p>
         <ul id="activity-items" className="activity-items" hidden></ul>
         <details className="activity-settings">
           <summary>Alert settings</summary>
           <label><input type="checkbox" id="activity-keep" /> Keep redaction alerts</label>
           <p>Save what happened, the provider, the time, and the number of details replaced. If you pair devices, those alerts sync encrypted. Prompt text stays on your device.</p>
-          <p>For ChatGPT send alerts here, enable exposure history in the Chrome extension and open Redact in the same browser.</p>
+          <p>To sync ChatGPT usage, copy a pairing code from <a href="#devices">Devices</a> and paste it into <strong>Sync Chrome usage</strong> in the Redact extension. Chrome can sync while this dashboard is closed.</p>
+          <p>Change Off, Manual, or Auto for ChatGPT in the extension popup.</p>
         </details>
       </section>
       <section className="card history-card" aria-label="Saved checks">
@@ -213,7 +219,7 @@ function ToolsPage() {
 function DevicesPage() {
   return (
     <section id="devices-page" className="page" aria-labelledby="devices-heading" hidden>
-      <div className="page-heading"><div><div className="section-kicker">ENCRYPTED SYNC</div><h1 id="devices-heading">Devices<span>.</span></h1><p>See your saved checks on your phone and computer.</p></div></div>
+      <div className="page-heading"><div><div className="section-kicker">ENCRYPTED SYNC</div><h1 id="devices-heading">Devices<span>.</span></h1><p>See saved checks and redaction usage on your linked devices.</p></div></div>
       <div className="device-hero card">
         <div className="device-copy"><h2 id="device-heading">Connect your devices</h2><p id="device-detail">Set up sync here, then scan a QR code with your other device.</p><span className="device-status" id="device-status" role="status" hidden><span className="status-dot"></span><span id="device-phase">This device only</span></span><div className="device-actions"><button className="primary-button" id="create-sync">Enable device sync <span aria-hidden="true">↗</span></button><button className="text-button" id="join-sync">I have a pairing code</button><button className="primary-button" id="invite-device" hidden>Add a device <span aria-hidden="true">＋</span></button></div></div>
         <div className="device-network" aria-hidden="true"><div className="network-halo"></div><svg className="network-path" viewBox="0 0 420 220"><path d="M28 109h76l32-44h41m63 44h74l34 40h43"/><path className="network-signal" d="M28 109h76l32-44h41m63 44h74l34 40h43" pathLength="100"/><circle cx="29" cy="109" r="4"/><circle cx="391" cy="149" r="4"/></svg><div className="network-device"><img src="brand.svg" width="74" height="74" alt="" /></div><div className="network-phone">▯</div></div>

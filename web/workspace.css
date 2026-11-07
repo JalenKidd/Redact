@@ -226,6 +226,10 @@ body[data-appearance="midnight"] #scan-page :is(.redact-mask, .replacement-token
 .redaction-activity { display: grid; gap: 10px; padding: 18px; margin-bottom: 12px; }
 .activity-heading, .activity-items li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .activity-heading h2 { margin: 2px 0 0; }
+.activity-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 2px 0; }
+.activity-totals div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 3px; min-width: 0; padding: 9px; border: 1px solid var(--line); border-radius: 10px; }
+.activity-totals dd { margin: 0; font-size: clamp(19px, 4vw, 26px); font-weight: 750; line-height: 1.05; }
+.activity-totals dt { color: var(--muted); font-size: 12px; line-height: 1.35; }
 .redaction-activity p, .activity-items time { margin: 0; color: var(--muted); font-size: 13px; }
 .activity-items { list-style: none; padding: 0; margin: 0; }
 .activity-items li { padding: 9px 0; border-top: 1px solid var(--line); }

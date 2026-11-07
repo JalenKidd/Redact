@@ -2,6 +2,7 @@ const MAX_BODY = 750_000;
 const encoder = new TextEncoder();
 const appOrigin = typeof __REDACT_ORIGIN__ === "undefined" ? null : __REDACT_ORIGIN__;
 const pagesOrigin = typeof __REDACT_PAGES_ORIGIN__ === "undefined" ? null : __REDACT_PAGES_ORIGIN__;
+const extensionOrigin = typeof __REDACT_EXTENSION_ORIGIN__ === "undefined" ? null : __REDACT_EXTENSION_ORIGIN__;
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -147,6 +148,7 @@ async function api(request, env) {
     const updated = await db.prepare("UPDATE sync_spaces SET activity_payload = ?, activity_version = activity_version + 1 WHERE id = ? AND activity_version = ? AND EXISTS (SELECT 1 FROM sync_devices WHERE id = ? AND token_hash = ?)")
       .bind(data.payload, device.space_id, data.version, device.id, device.token_hash).run();
     if (updated.meta.changes !== 1) throw new HttpError(409, "Another device updated redaction activity. Merge and retry.");
+    await db.prepare("UPDATE sync_devices SET last_seen = ? WHERE id = ?").bind(Date.now(), device.id).run();
     return { saved: true };
   }
   if (path === "/api/sync/state" && request.method === "PUT") {
@@ -201,7 +203,7 @@ export function createWorker(assets = {}) {
         } });
       }
       const origin = request.headers.get("origin");
-      const permitted = !origin || [url.origin, appOrigin, pagesOrigin, "redact://app", "http://127.0.0.1:4173"].includes(origin);
+      const permitted = !origin || [url.origin, appOrigin, pagesOrigin, extensionOrigin, "redact://app", "http://127.0.0.1:4173"].includes(origin);
       const headers = {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",

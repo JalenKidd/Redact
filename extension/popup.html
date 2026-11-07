@@ -11,8 +11,30 @@
   <header><img src="icons/48.png" width="35" height="35" alt=""><div><strong>Redact</strong><small>ON-DEVICE PROMPT PRIVACY</small></div></header>
   <main>
     <section>
-      <label><span>Auto-redact before sending</span><input type="checkbox" id="auto-redact" disabled></label>
-      <p>Replace detected private details when you press Send in ChatGPT. Checks run on this device.</p>
+      <fieldset id="protection-mode" disabled>
+        <legend>ChatGPT protection</legend>
+        <div class="mode-options">
+          <label><input type="radio" name="mode" value="off"><span>Off</span></label>
+          <label><input type="radio" name="mode" value="manual"><span>Manual</span></label>
+          <label><input type="radio" name="mode" value="auto"><span>Auto</span></label>
+        </div>
+      </fieldset>
+      <p id="mode-detail" role="status">Loading protection mode…</p>
+    </section>
+    <section>
+      <strong>Sync Chrome usage</strong>
+      <p id="activity-status" role="status">Checking connection…</p>
+      <details id="activity-pair" hidden>
+        <summary>Link Chrome to Redact</summary>
+        <p>In the website or Electron app, open Devices → Add a device and copy the pairing code.</p>
+        <form id="activity-form">
+          <label for="activity-code">Pairing code</label>
+          <input id="activity-code" required maxlength="1000" autocomplete="off" spellcheck="false">
+          <button type="submit">Link Chrome</button>
+        </form>
+      </details>
+      <button type="button" id="activity-disconnect" hidden>Disconnect Chrome</button>
+      <small>Sync shares encrypted redaction counts. Chat text stays out.</small>
     </section>
     <section>
       <label><span>Keep exposure history</span><input type="checkbox" id="history" disabled></label>
@@ -20,7 +42,7 @@
       <small id="status" role="status">Loading preferences…</small>
     </section>
     <a href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT ↗</a>
-    <a id="dashboard" target="_blank" rel="noopener">Open dashboard ↗</a>
+    <a id="dashboard" target="_blank" rel="noopener">Open Redact usage ↗</a>
     <a id="local-dashboard" target="_blank" rel="noopener">Open local dashboard ↗</a>
     <button type="button" id="clear" disabled>Clear local history</button>
     <dialog id="confirm"><p>Clear all Redact exposure history on this browser?</p><form method="dialog"><button value="cancel">Cancel</button><button value="clear">Clear history</button></form></dialog>
