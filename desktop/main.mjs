@@ -94,7 +94,8 @@ if (!app.requestSingleInstanceLock()) {
 function createWindow() {
   window = new BrowserWindow({
     width: 1280, height: 900, minWidth: 720, minHeight: 640,
-    title: "Redact", backgroundColor: "#f6f5f1",
+    title: "Redact", backgroundColor: "#f4f3f8",
+    ...(process.platform === "darwin" ? { titleBarStyle: "hiddenInset", trafficLightPosition: { x: 16, y: 12 } } : {}),
     icon: join(root, "desktop", "icon.png"),
     show: false,
     webPreferences: {
